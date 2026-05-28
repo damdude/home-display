@@ -1,0 +1,26 @@
+[Unit]
+Description=Home Display Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dash
+WorkingDirectory=/home/dash/home-display
+EnvironmentFile=-/home/dash/home-display/.env
+ExecStart=/bin/bash -c '\
+  mode=$(cat /home/dash/home-display/mode 2>/dev/null || echo debug); \
+  if [ "$mode" = "production" ]; then \
+    export PORT=3000 NODE_ENV=production; \
+    exec /usr/bin/node /home/dash/home-display/build/index.js; \
+  else \
+    exec /home/dash/home-display/node_modules/.bin/vite dev --host --port 5173; \
+  fi'
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=home-display
+
+[Install]
+WantedBy=multi-user.target

@@ -106,6 +106,17 @@ screensaver. Develop with code on Mac, runtime on Pi, view from Mac browser.\
 - We test at 1440\'d72560 dev resolution, but design must also work at the\
   smaller 1280\'d7800 target Waveshare resolution. Use responsive layout\
   that adapts; do not pixel-pin to either resolution.\
+- Compositor is labwc (Wayland); X11/LXDE is not present on Trixie\
+- Wayland socket: WAYLAND_DISPLAY=wayland-0, XDG_RUNTIME_DIR=/run/user/1000\
+- Display rotation is configured in ~/.config/labwc/autostart via wlr-randr;\
+  output name and transform live in DISPLAY_OUTPUT / DISPLAY_TRANSFORM at the\
+  top of scripts/deploy.sh\
+- Query available outputs from Mac:\
+    ssh dash@192.168.7.21 'WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 wlr-randr'\
+- Waveshare DSI display will likely need a different transform value; verify\
+  with wlr-randr when the hardware arrives\
+- Touch coordinate mapping (Waveshare touchscreen) is separate from display\
+  transform; both must match for correct touch input\
 \
 ## Build phases\
 0. Project skeleton + HA WebSocket connection + systemd + mode switching\

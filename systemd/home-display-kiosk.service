@@ -1,0 +1,56 @@
+[Unit]
+Description=Home Display Chromium Kiosk
+After=graphical.target home-display.service
+Wants=graphical.target
+BindsTo=home-display.service
+
+[Service]
+Type=simple
+User=dash
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/dash/.Xauthority
+# Wait for lightdm auto-login to establish the user X session
+ExecStartPre=/bin/bash -c '\
+  for i in $(seq 1 30); do \
+    [ -f /home/dash/.Xauthority ] && exit 0; \
+    sleep 1; \
+  done; \
+  echo "Timed out waiting for /home/dash/.Xauthority"; exit 1'
+# Wait until the dashboard server is accepting connections
+ExecStartPre=/bin/bash -c '\
+  mode=$(cat /home/dash/home-display/mode 2>/dev/null || echo debug); \
+  port=5173; \
+  [ "$mode" = "production" ] && port=3000; \
+  for i in $(seq 1 60); do \
+    curl -sf "http://localhost:$port" > /dev/null 2>&1 && exit 0; \
+    sleep 1; \
+  done; \
+  echo "Timed out waiting for server on port $port"; exit 1'
+ExecStart=/bin/bash -c '\
+  mode=$(cat /home/dash/home-display/mode 2>/dev/null || echo debug); \
+  if [ "$mode" = "production" ]; then \
+    url="http://localhost:3000"; \
+  else \
+    url="http://localhost:5173"; \
+  fi; \
+  CHROME=$(command -v chromium || command -v chromium-browser || echo /usr/bin/chromium); \
+  exec "$CHROME" \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-first-run \
+    --disable-session-crashed-bubble \
+    --disable-restore-session-state \
+    --disable-pinch \
+    --check-for-update-interval=31536000 \
+    --disable-background-networking \
+    --password-store=basic \
+    "$url"'
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=home-display-kiosk
+
+[Install]
+WantedBy=graphical.target

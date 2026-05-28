@@ -1,0 +1,14 @@
+# Allow dash to manage home-display services without a password prompt
+dash ALL=(ALL) NOPASSWD: \
+  /usr/bin/systemctl start home-display, \
+  /usr/bin/systemctl stop home-display, \
+  /usr/bin/systemctl restart home-display, \
+  /usr/bin/systemctl reload home-display, \
+  /usr/bin/systemctl enable home-display, \
+  /usr/bin/systemctl disable home-display, \
+  /usr/bin/systemctl start home-display-kiosk, \
+  /usr/bin/systemctl stop home-display-kiosk, \
+  /usr/bin/systemctl restart home-display-kiosk, \
+  /usr/bin/systemctl reload home-display-kiosk, \
+  /usr/bin/systemctl enable home-display-kiosk, \
+  /usr/bin/systemctl disable home-display-kiosk
