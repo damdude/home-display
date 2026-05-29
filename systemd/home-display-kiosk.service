@@ -7,15 +7,15 @@ BindsTo=home-display.service
 [Service]
 Type=simple
 User=dash
-Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/dash/.Xauthority
-# Wait for lightdm auto-login to establish the user X session
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+# Wait for the Wayland compositor (labwc) to create its socket
 ExecStartPre=/bin/bash -c '\
   for i in $(seq 1 30); do \
-    [ -f /home/dash/.Xauthority ] && exit 0; \
+    [ -S /run/user/1000/wayland-0 ] && exit 0; \
     sleep 1; \
   done; \
-  echo "Timed out waiting for /home/dash/.Xauthority"; exit 1'
+  echo "Timed out waiting for /run/user/1000/wayland-0"; exit 1'
 # Wait until the dashboard server is accepting connections
 ExecStartPre=/bin/bash -c '\
   mode=$(cat /home/dash/home-display/mode 2>/dev/null || echo debug); \

@@ -217,10 +217,10 @@ ssh "$PI" "sudo systemctl restart home-display.service"
 ok "home-display started"
 
 log "Starting home-display-kiosk (Chromium will open on Pi's monitor)..."
-log "  This waits up to 30s for XAUTHORITY then 60s for the server — please wait..."
+log "  This waits up to 30s for Wayland socket then 60s for the server — please wait..."
 ssh "$PI" "sudo systemctl restart home-display-kiosk.service" && ok "home-display-kiosk started" || {
   warn "Kiosk service did not start cleanly on first attempt."
-  warn "This can happen when X session auth hasn't settled yet."
+  warn "This can happen when the labwc Wayland session hasn't settled yet."
   warn "Try: ssh $PI 'sudo systemctl restart home-display-kiosk'"
   warn "Logs: ssh $PI 'journalctl -u home-display-kiosk -n 50'"
 }
