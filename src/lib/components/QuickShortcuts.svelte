@@ -5,19 +5,19 @@
 </script>
 
 <div class="row">
-  <QuickShortcut label="Outdoor Lights" color={cv.accent.yellow}>
+  <QuickShortcut label="Outdoor Lights" color={cv.accent.light}>
     <Lightbulb size={26} strokeWidth={1.5} />
   </QuickShortcut>
 
-  <QuickShortcut label="Arm Security" color={cv.accent.orange}>
+  <QuickShortcut label="Arm Security" color={cv.accent.climate}>
     <ShieldCheck size={26} strokeWidth={1.5} />
   </QuickShortcut>
 
-  <QuickShortcut label="Living Room TV" color={cv.accent.blue}>
+  <QuickShortcut label="Living Room TV" color={cv.accent.info}>
     <Tv2 size={26} strokeWidth={1.5} />
   </QuickShortcut>
 
-  <QuickShortcut label="Fan" color={cv.accent.green}>
+  <QuickShortcut label="Fan" color={cv.accent.safe}>
     <Fan size={26} strokeWidth={1.5} />
   </QuickShortcut>
 </div>

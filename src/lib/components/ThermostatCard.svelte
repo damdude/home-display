@@ -6,11 +6,11 @@
 
   type ModeConfig = { label: string; color: string };
   const MODE: Record<string, ModeConfig> = {
-    cool:      { label: 'Cooling', color: 'var(--color-accent-blue)'   },
-    heat:      { label: 'Heating', color: 'var(--color-accent-orange)' },
-    heat_cool: { label: 'Auto',    color: 'var(--color-accent-purple)' },
-    auto:      { label: 'Auto',    color: 'var(--color-accent-purple)' },
-    off:       { label: 'Off',     color: 'var(--color-text-tertiary)' },
+    cool:      { label: 'Cooling', color: 'var(--color-accent-info)'    },
+    heat:      { label: 'Heating', color: 'var(--color-accent-climate)' },
+    heat_cool: { label: 'Auto',    color: 'var(--color-accent-music)'   },
+    auto:      { label: 'Auto',    color: 'var(--color-accent-music)'   },
+    off:       { label: 'Off',     color: 'var(--color-text-tertiary)'  },
   };
 
   let mode       = $derived(MODE[climate.state] ?? MODE['off']);
@@ -21,6 +21,12 @@
   let iconOpacity = $derived(isActive ? '0.9' : '0.45');
   let isHeating  = $derived(climate.attributes.hvac_action === 'heating');
 </script>
+
+<div class="climate-wrap">
+  <div class="section-label">
+    <Thermometer size={13} strokeWidth={2} />
+    <span>Climate</span>
+  </div>
 
 <div class="card">
   <!-- Left: current temp + active-mode icon -->
@@ -64,10 +70,31 @@
     </div>
   </div>
 </div>
+</div>
 
 <style>
-  .card {
+  .climate-wrap {
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--color-text-tertiary);
+    font-size: var(--type-label);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0 0.2rem;
+  }
+
+  .card {
+    flex: 1;
+    min-height: 0;
     background: var(--color-surface-1);
     border-radius: 28px;
     border: 1px solid var(--color-border);

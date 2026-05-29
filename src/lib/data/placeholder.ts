@@ -6,6 +6,10 @@
  * never change.
  */
 
+// ── Demo flags ──────────────────────────────────────────────────────────────
+/** Flip to true to preview Music zone State B (now-playing) */
+export const MUSIC_DEMO_PLAYING = false;
+
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export interface WeatherForecastDay {
@@ -119,6 +123,16 @@ export const mediaPlayerMaindoorSpeaker: MediaPlayerState = {
   attributes: {
     media_title: null,
     media_artist: null,
+    entity_picture: null,
+  },
+};
+
+/** Demo playing state — used when MUSIC_DEMO_PLAYING is true */
+export const mediaPlayerDemoPlaying: MediaPlayerState = {
+  state: 'playing',
+  attributes: {
+    media_title: 'Something',
+    media_artist: 'The Beatles',
     entity_picture: null,
   },
 };

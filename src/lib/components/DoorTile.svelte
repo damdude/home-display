@@ -13,8 +13,8 @@
   } = $props();
 
   let isOpen      = $derived(entity.state === 'on');
-  let accent      = $derived(isOpen ? 'var(--color-accent-red)' : 'var(--color-accent-green)');
-  let pulseColor  = $derived(isOpen ? raw.accent.red : raw.accent.green);
+  let accent      = $derived(isOpen ? 'var(--color-accent-alert)' : 'var(--color-accent-safe)');
+  let pulseColor  = $derived(isOpen ? raw.accent.alert : raw.accent.safe);
 </script>
 
 <div

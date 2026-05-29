@@ -17,8 +17,12 @@
     binarySensorBackPerimeter,
     binarySensorFrontSidePerimeter,
     mediaPlayerMaindoorSpeaker,
+    mediaPlayerDemoPlaying,
+    MUSIC_DEMO_PLAYING,
     type BinarySensorState,
   } from '$lib/data/placeholder.js';
+
+  const mediaPlayer = MUSIC_DEMO_PLAYING ? mediaPlayerDemoPlaying : mediaPlayerMaindoorSpeaker;
 
   import { startDoorSimulation, type DoorKey } from '$lib/data/simulateChanges.js';
 
@@ -82,7 +86,7 @@
 
   <!-- Zone 6: Now playing -->
   <section class="zone zone-media">
-    <MediaNowPlaying player={mediaPlayerMaindoorSpeaker} />
+    <MediaNowPlaying player={mediaPlayer} />
   </section>
 
   <!-- Zone 7: Quick shortcuts -->

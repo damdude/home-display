@@ -3,7 +3,7 @@
 
   let {
     label,
-    color = 'var(--color-accent-yellow)',
+    color = 'var(--color-accent-light)',
     onclick,
     children,
   }: {

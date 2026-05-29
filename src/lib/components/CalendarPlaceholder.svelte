@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { CalendarDays } from 'lucide-svelte';
+  import { CalendarDays, Calendar } from 'lucide-svelte';
 
   const events = [
-    { time: '10:00 AM', title: 'Dentist Appointment',  color: 'var(--color-accent-red)'    },
-    { time: '2:00 PM',  title: 'Team Standup',         color: 'var(--color-accent-blue)'   },
-    { time: '7:00 PM',  title: 'Dinner with family',   color: 'var(--color-accent-green)'  },
+    { time: '10:00 AM', title: 'Dentist Appointment',  color: 'var(--color-accent-alert)'   },
+    { time: '2:00 PM',  title: 'Team Standup',         color: 'var(--color-accent-info)'    },
+    { time: '7:00 PM',  title: 'Dinner with family',   color: 'var(--color-accent-safe)'    },
   ];
 
   function today(): string {
@@ -13,6 +13,12 @@
     });
   }
 </script>
+
+<div class="calendar-wrap">
+  <div class="section-label">
+    <Calendar size={13} strokeWidth={2} />
+    <span>Today</span>
+  </div>
 
 <div class="card">
   <div class="header">
@@ -29,10 +35,31 @@
     {/each}
   </div>
 </div>
+</div>
 
 <style>
-  .card {
+  .calendar-wrap {
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--color-text-tertiary);
+    font-size: var(--type-label);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0 0.2rem;
+  }
+
+  .card {
+    flex: 1;
+    min-height: 0;
     background: var(--color-surface-1);
     border-radius: 28px;
     border: 1px solid var(--color-border);

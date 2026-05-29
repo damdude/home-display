@@ -6,10 +6,10 @@
 
   type PillStyle = { label: string; color: string; bg: string };
   const STYLES: Record<AlarmState['state'], PillStyle> = {
-    disarmed:   { label: 'Disarmed',   color: 'var(--color-accent-green)',  bg: 'var(--color-accent-green)'  },
-    armed_home: { label: 'Armed Home', color: 'var(--color-accent-orange)', bg: 'var(--color-accent-orange)' },
-    armed_away: { label: 'Armed Away', color: 'var(--color-accent-orange)', bg: 'var(--color-accent-orange)' },
-    triggered:  { label: 'TRIGGERED',  color: 'var(--color-accent-red)',    bg: 'var(--color-accent-red)'    },
+    disarmed:   { label: 'Disarmed',   color: 'var(--color-accent-safe)',    bg: 'var(--color-accent-safe)'    },
+    armed_home: { label: 'Armed Home', color: 'var(--color-accent-climate)', bg: 'var(--color-accent-climate)' },
+    armed_away: { label: 'Armed Away', color: 'var(--color-accent-climate)', bg: 'var(--color-accent-climate)' },
+    triggered:  { label: 'TRIGGERED',  color: 'var(--color-accent-alert)',   bg: 'var(--color-accent-alert)'   },
   };
 
   let s = $derived(STYLES[alarm.state]);
