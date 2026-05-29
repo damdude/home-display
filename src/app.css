@@ -9,17 +9,19 @@
   color-scheme: dark;
 
   --color-canvas:    #0a0a0c;
-  --color-surface-1: #161618;
-  --color-surface-2: #1f1f23;
+  --color-surface-1: #1a1a1f;
+  --color-surface-2: #232328;
+  --color-surface-3: #2c2c32;
   --color-highlight: rgba(255, 255, 255, 0.04);
   --color-border:    rgba(255, 255, 255, 0.07);
 
-  --color-accent-orange: #ff9f0a;
-  --color-accent-green:  #30d158;
-  --color-accent-red:    #ff453a;
-  --color-accent-blue:   #0a84ff;
-  --color-accent-yellow: #ffd60a;
-  --color-accent-purple: #bf5af2;
+  --color-accent-climate: #d7906a;
+  --color-accent-safe:    #6b9b7d;
+  --color-accent-alert:   #c66b6b;
+  --color-accent-info:    #6b8fb5;
+  --color-accent-music:   #9b7bb5;
+  --color-accent-light:   #c4a572;
+  --color-accent-neutral: #8e8e93;
 
   --color-text-primary:   rgba(255, 255, 255, 0.92);
   --color-text-secondary: rgba(255, 255, 255, 0.56);
@@ -33,29 +35,41 @@
   --color-canvas:    #f2f2f7;
   --color-surface-1: #ffffff;
   --color-surface-2: #f2f2f7;
+  --color-surface-3: #e8e8ed;
   --color-highlight: rgba(0, 0, 0, 0.02);
   --color-border:    rgba(0, 0, 0, 0.10);
 
-  --color-accent-orange: #ff9500;
-  --color-accent-green:  #34c759;
-  --color-accent-red:    #ff3b30;
-  --color-accent-blue:   #007aff;
-  --color-accent-yellow: #ffcc00;
-  --color-accent-purple: #af52de;
+  --color-accent-climate: #b8623e;
+  --color-accent-safe:    #3d7a52;
+  --color-accent-alert:   #a83030;
+  --color-accent-info:    #2e619a;
+  --color-accent-music:   #6e3fa0;
+  --color-accent-light:   #8a6b2e;
+  --color-accent-neutral: #6e6e73;
 
   --color-text-primary:   rgba(0, 0, 0, 0.87);
   --color-text-secondary: rgba(0, 0, 0, 0.50);
   --color-text-tertiary:  rgba(0, 0, 0, 0.26);
 }
 
-/* ── Type scale (vh-based so both portrait resolutions feel proportional) ──── */
+/* ── Type scale (vw-based, portrait display — width is the stable axis) ────── */
 :root {
-  --type-clock:   clamp(52px, 7.5vh, 80px);
-  --type-temp:    clamp(38px, 5vh, 60px);
-  --type-h1:      clamp(22px, 2.8vh, 34px);
-  --type-h2:      clamp(18px, 2.2vh, 26px);
-  --type-body:    clamp(14px, 1.8vh, 20px);
-  --type-caption: clamp(12px, 1.4vh, 16px);
+  /* Clock: large greeting/time numerals */
+  --type-clock:   clamp(80px, 6.67vw, 96px);
+  /* Temp: primary temperature readout */
+  --type-temp:    clamp(52px, 4.44vw, 64px);
+  /* Hero: large hero numbers (setpoint, etc.) */
+  --type-hero:    clamp(36px, 3.00vw, 48px);
+  /* H1: section titles, card primaries */
+  --type-h1:      clamp(24px, 2.22vw, 32px);
+  /* H2: card secondaries, tile values */
+  --type-h2:      clamp(20px, 1.85vw, 28px);
+  /* Body: standard readable text */
+  --type-body:    clamp(16px, 1.48vw, 22px);
+  /* Caption: labels, secondary info */
+  --type-caption: clamp(13px, 1.11vw, 17px);
+  /* Label: section header labels, pill text */
+  --type-label:   clamp(11px, 0.93vw, 14px);
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────────── */

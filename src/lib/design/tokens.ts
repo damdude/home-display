@@ -9,12 +9,13 @@
 // Raw values — for JS logic that needs real color strings
 export const raw = {
   accent: {
-    orange: '#ff9f0a',
-    green:  '#30d158',
-    red:    '#ff453a',
-    blue:   '#0a84ff',
-    yellow: '#ffd60a',
-    purple: '#bf5af2',
+    climate: '#D7906A',
+    safe:    '#6B9B7D',
+    alert:   '#C66B6B',
+    info:    '#6B8FB5',
+    music:   '#9B7BB5',
+    light:   '#C4A572',
+    neutral: '#8E8E93',
   },
 } as const;
 
@@ -24,16 +25,18 @@ export const cv = {
     canvas:    'var(--color-canvas)',
     surface1:  'var(--color-surface-1)',
     surface2:  'var(--color-surface-2)',
+    surface3:  'var(--color-surface-3)',
     highlight: 'var(--color-highlight)',
   },
   border: 'var(--color-border)',
   accent: {
-    orange: 'var(--color-accent-orange)',
-    green:  'var(--color-accent-green)',
-    red:    'var(--color-accent-red)',
-    blue:   'var(--color-accent-blue)',
-    yellow: 'var(--color-accent-yellow)',
-    purple: 'var(--color-accent-purple)',
+    climate: 'var(--color-accent-climate)',
+    safe:    'var(--color-accent-safe)',
+    alert:   'var(--color-accent-alert)',
+    info:    'var(--color-accent-info)',
+    music:   'var(--color-accent-music)',
+    light:   'var(--color-accent-light)',
+    neutral: 'var(--color-accent-neutral)',
   },
   text: {
     primary:   'var(--color-text-primary)',
@@ -52,10 +55,12 @@ export const radius = {
 
 // Type scale — use CSS variable names, defined in app.css
 export const type = {
-  clock:   'var(--type-clock)',
-  temp:    'var(--type-temp)',
-  h1:      'var(--type-h1)',
-  h2:      'var(--type-h2)',
-  body:    'var(--type-body)',
-  caption: 'var(--type-caption)',
+  clock:    'var(--type-clock)',
+  temp:     'var(--type-temp)',
+  hero:     'var(--type-hero)',
+  h1:       'var(--type-h1)',
+  h2:       'var(--type-h2)',
+  body:     'var(--type-body)',
+  caption:  'var(--type-caption)',
+  label:    'var(--type-label)',
 } as const;

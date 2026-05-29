@@ -14,7 +14,7 @@ export const dur = {
   fast:     200,   // micro-interactions (button press)
   standard: 300,   // most transitions
   slow:     500,   // large layout changes
-  pulse:    250,   // attention ring expand + tile scale
-  hold:     4000,  // attention ring visible hold duration
-  fade:     800,   // attention ring fade out
+  breathe:  2000,  // one breathing-ring cycle (opacity in+out)
+  breatheRepeat: 2, // number of breathing cycles before fade
+  fade:     600,   // attention ring fade out
 } as const;
