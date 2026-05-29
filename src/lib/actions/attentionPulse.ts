@@ -2,16 +2,18 @@
  * attentionPulse — Svelte action that rings a tile when its state changes.
  *
  * Usage:
- *   <div use:attentionPulse={{ count: pulseCount, color: '#30d158', radius: '20px' }}>
+ *   <div use:attentionPulse={{ count: pulseCount, color: '#6b9b7d', radius: '28px' }}>
  *
  * Trigger by incrementing `count`. The ring color should be a raw hex string
  * (e.g. from tokens.raw.accent.*) — CSS variable strings won't work here
- * because we append hex-alpha suffixes for the glow.
+ * because we build box-shadow values directly.
  *
  * Animation phases:
- *   0–250 ms  : ring expands 1 px → 4 px, tile scales 1.0 → 1.02 → 1.0
- *   250–4250ms: ring holds with subtle glow
- *   4250–5050ms: ring fades to transparent
+ *   0 – breathe×N ms : 1.5px ring breathes opacity 0.4 → 0.8 → 0.4, N times
+ *   breathe×N ms     : ring fades out over 600 ms
+ *   Total ≈ 4.6 s (2 cycles × 2 s + 0.6 s fade)
+ *
+ * No tile scale, no background color change.
  */
 
 import type { Action } from 'svelte/action';
@@ -20,7 +22,7 @@ import { dur, ease } from '$lib/design/motion.js';
 export interface AttentionPulseParams {
   /** Increment to trigger; 0 = not yet triggered */
   count: number;
-  /** Raw hex color, e.g. '#30d158' */
+  /** Raw hex color, e.g. '#6b9b7d' */
   color: string;
   /** Border-radius matching the host tile */
   radius: string;
@@ -32,15 +34,16 @@ export const attentionPulse: Action<HTMLElement, AttentionPulseParams> = (
 ) => {
   let prevCount = initialParams.count;
   let ring: HTMLDivElement | null = null;
+  let animation: Animation | null = null;
   const timers: ReturnType<typeof setTimeout>[] = [];
 
   function cleanupRing() {
     timers.forEach(clearTimeout);
     timers.length = 0;
+    animation?.cancel();
+    animation = null;
     ring?.remove();
     ring = null;
-    node.style.transform = '';
-    node.style.transition = '';
   }
 
   function trigger(color: string, r: string) {
@@ -51,47 +54,49 @@ export const attentionPulse: Action<HTMLElement, AttentionPulseParams> = (
       node.style.position = 'relative';
     }
 
-    // Build ring — sits flush over the host, no layout impact
+    // Build ring — sits flush over the host, pointer-events transparent
     ring = document.createElement('div');
     Object.assign(ring.style, {
       position:      'absolute',
-      inset:         '-1px',
+      inset:         '-2px',
       borderRadius:  r,
       pointerEvents: 'none',
       zIndex:        '10',
-      // Start thin and transparent-glow
-      boxShadow:  `0 0 0 1px ${color}, 0 0 0px ${color}00`,
-      transition: `box-shadow ${dur.pulse}ms ${ease.apple}`,
+      boxShadow:     `0 0 0 1.5px ${color}`,
+      opacity:       '0',
     });
     node.appendChild(ring);
 
-    // Phase 1 — expand ring + scale tile
-    node.style.transition = `transform ${dur.pulse}ms ${ease.apple}`;
-    node.style.transform   = 'scale(1.02)';
+    const totalBreathMs = dur.breathe * dur.breatheRepeat;
 
-    // Force reflow so CSS transition fires from the initial state
-    ring.getBoundingClientRect();
-    ring.style.boxShadow = `0 0 0 4px ${color}, 0 0 20px ${color}50`;
+    // Breathing keyframes: opacity 0 → 0.4 → 0.8 → 0.4 → 0 (smooth in-out, repeated)
+    // We run one keyframe set per cycle
+    const breatheKeyframes: Keyframe[] = [
+      { opacity: '0.4', offset: 0 },
+      { opacity: '0.8', offset: 0.5 },
+      { opacity: '0.4', offset: 1 },
+    ];
 
-    // Settle tile scale back
-    timers.push(
-      setTimeout(() => {
-        node.style.transform = 'scale(1.0)';
-      }, dur.pulse),
-    );
+    animation = ring.animate(breatheKeyframes, {
+      duration:   dur.breathe,
+      iterations: dur.breatheRepeat,
+      easing:     'ease-in-out',
+      fill:       'forwards',
+    });
 
-    // Phase 3 — begin fade
+    // After all cycles complete, fade ring to invisible then remove
     timers.push(
       setTimeout(() => {
         if (!ring) return;
-        ring.style.transition = `box-shadow ${dur.fade}ms ${ease.apple}`;
-        ring.style.boxShadow  = `0 0 0 4px ${color}00, 0 0 20px ${color}00`;
-      }, dur.pulse + dur.hold),
+        animation?.cancel();
+        animation = null;
+        ring.style.transition = `opacity ${dur.fade}ms ${ease.apple}`;
+        ring.style.opacity    = '0';
+      }, totalBreathMs),
     );
 
-    // Cleanup
     timers.push(
-      setTimeout(cleanupRing, dur.pulse + dur.hold + dur.fade + 100),
+      setTimeout(cleanupRing, totalBreathMs + dur.fade + 50),
     );
   }
 
