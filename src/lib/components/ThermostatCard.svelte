@@ -4,52 +4,54 @@
 
   let { climate }: { climate: ClimateState } = $props();
 
-  type ModeConfig = { label: string; color: string; bg: string };
-  const MODE_CONFIG: Record<string, ModeConfig> = {
-    cool:      { label: 'Cooling', color: 'var(--color-accent-blue)',   bg: 'var(--color-accent-blue)'   },
-    heat:      { label: 'Heating', color: 'var(--color-accent-orange)', bg: 'var(--color-accent-orange)' },
-    heat_cool: { label: 'Auto',    color: 'var(--color-accent-purple)', bg: 'var(--color-accent-purple)' },
-    auto:      { label: 'Auto',    color: 'var(--color-accent-purple)', bg: 'var(--color-accent-purple)' },
-    off:       { label: 'Off',     color: 'var(--color-text-tertiary)', bg: 'var(--color-text-tertiary)' },
+  type ModeConfig = { label: string; color: string };
+  const MODE: Record<string, ModeConfig> = {
+    cool:      { label: 'Cooling', color: 'var(--color-accent-blue)'   },
+    heat:      { label: 'Heating', color: 'var(--color-accent-orange)' },
+    heat_cool: { label: 'Auto',    color: 'var(--color-accent-purple)' },
+    auto:      { label: 'Auto',    color: 'var(--color-accent-purple)' },
+    off:       { label: 'Off',     color: 'var(--color-text-tertiary)' },
   };
 
-  const ACTION_ICONS: Record<string, typeof Thermometer> = {
-    cooling: Wind,
-    heating: Thermometer,
-  };
-
-  let mode        = $derived(MODE_CONFIG[climate.state] ?? MODE_CONFIG['off']);
-  let actionIcon  = $derived(ACTION_ICONS[climate.attributes.hvac_action] ?? Thermometer);
-  let isActive    = $derived(climate.attributes.hvac_action !== 'idle' && climate.state !== 'off');
+  let mode       = $derived(MODE[climate.state] ?? MODE['off']);
+  let isActive   = $derived(
+    climate.attributes.hvac_action !== 'idle' && climate.state !== 'off'
+  );
+  let iconColor  = $derived(isActive ? mode.color : 'var(--color-text-tertiary)');
+  let iconOpacity = $derived(isActive ? '0.9' : '0.45');
+  let isHeating  = $derived(climate.attributes.hvac_action === 'heating');
 </script>
 
 <div class="card">
-  <!-- Left: current temp -->
+  <!-- Left: current temp + active-mode icon -->
   <div class="left">
     <div class="temp-row">
       <span class="temp num">{climate.attributes.current_temperature}°</span>
-      <svelte:component this={actionIcon} size={32} strokeWidth={1.3}
-        style:color={isActive ? mode.color : 'var(--color-text-tertiary)'}
-        style:opacity={isActive ? '0.9' : '0.5'}
-      />
+      <!-- Wrap icon in span so style: directives apply to the HTML element, not the component -->
+      <span class="action-icon" style:color={iconColor} style:opacity={iconOpacity}>
+        {#if isHeating}
+          <Thermometer size={32} strokeWidth={1.3} />
+        {:else}
+          <Wind size={32} strokeWidth={1.3} />
+        {/if}
+      </span>
     </div>
-    <p class="label">Current Temperature</p>
+    <p class="sub">Current Temperature</p>
   </div>
 
-  <!-- Right: mode + setpoint + humidity -->
+  <!-- Right: mode pill + setpoint + humidity -->
   <div class="right">
-    <!-- Mode pill -->
     <div
       class="mode-pill"
       style:color={mode.color}
-      style:background={`color-mix(in srgb, ${mode.bg} 15%, transparent)`}
-      style:border-color={`color-mix(in srgb, ${mode.bg} 30%, transparent)`}
+      style:background={`color-mix(in srgb, ${mode.color} 15%, transparent)`}
+      style:border-color={`color-mix(in srgb, ${mode.color} 30%, transparent)`}
     >
       {mode.label}
     </div>
 
     <div class="setpoint">
-      <span class="set-label">Set</span>
+      <span class="set-label">Set to</span>
       <span class="set-value num">
         {climate.attributes.target_temp_low}° – {climate.attributes.target_temp_high}°
       </span>
@@ -57,7 +59,7 @@
 
     <div class="humidity">
       <Droplets size={14} strokeWidth={1.8} />
-      <span class="hum-value num">{48}%</span>
+      <span class="num">48%</span>
       <span class="hum-label">Humidity</span>
     </div>
   </div>
@@ -70,23 +72,22 @@
     border-radius: 28px;
     border: 1px solid var(--color-border);
     box-shadow: inset 0 1px 0 var(--color-highlight);
-    padding: 1.2rem 1.8rem;
+    padding: 1rem 1.8rem;
     display: flex;
     align-items: center;
     gap: 8%;
   }
 
-  /* Left */
   .left {
     display: flex;
     flex-direction: column;
-    gap: 0.15em;
+    gap: 0.1em;
   }
 
   .temp-row {
     display: flex;
     align-items: center;
-    gap: 0.4em;
+    gap: 0.35em;
     line-height: 1;
   }
 
@@ -97,19 +98,24 @@
     color: var(--color-text-primary);
   }
 
-  .label {
+  .action-icon {
+    display: flex;
+    align-items: center;
+    transition: color 300ms cubic-bezier(0.32, 0.72, 0, 1),
+                opacity 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  .sub {
     font-size: var(--type-caption);
     color: var(--color-text-tertiary);
     margin: 0;
     font-weight: 500;
-    letter-spacing: 0.02em;
   }
 
-  /* Right */
   .right {
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
+    gap: 0.5rem;
   }
 
   .mode-pill {
@@ -149,10 +155,6 @@
     gap: 5px;
     color: var(--color-text-secondary);
     font-size: var(--type-caption);
-  }
-
-  .hum-value {
-    font-weight: 500;
   }
 
   .hum-label {

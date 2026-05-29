@@ -2,11 +2,12 @@
   import { page } from '$app/stores';
   import { Home, Shield, Music, SlidersHorizontal } from 'lucide-svelte';
 
+  // Inline each icon per tab to avoid <svelte:component> dynamic dispatch
   const tabs = [
-    { href: '/',         label: 'Home',     icon: Home              },
-    { href: '/security', label: 'Security', icon: Shield            },
-    { href: '/music',    label: 'Music',    icon: Music             },
-    { href: '/controls', label: 'Controls', icon: SlidersHorizontal },
+    { href: '/',         label: 'Home',     id: 'home'     },
+    { href: '/security', label: 'Security', id: 'security' },
+    { href: '/music',    label: 'Music',    id: 'music'    },
+    { href: '/controls', label: 'Controls', id: 'controls' },
   ] as const;
 </script>
 
@@ -15,7 +16,15 @@
     {@const active = $page.url.pathname === tab.href}
     <a href={tab.href} class="tab" class:active>
       <span class="icon">
-        <svelte:component this={tab.icon} size={24} strokeWidth={active ? 2.2 : 1.6} />
+        {#if tab.id === 'home'}
+          <Home     size={24} strokeWidth={active ? 2.2 : 1.6} />
+        {:else if tab.id === 'security'}
+          <Shield   size={24} strokeWidth={active ? 2.2 : 1.6} />
+        {:else if tab.id === 'music'}
+          <Music    size={24} strokeWidth={active ? 2.2 : 1.6} />
+        {:else}
+          <SlidersHorizontal size={24} strokeWidth={active ? 2.2 : 1.6} />
+        {/if}
       </span>
       <span class="label">{tab.label}</span>
     </a>

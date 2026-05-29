@@ -1,116 +1,110 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
 
-  // No credentials needed here — the browser connects to /api/ha (same
-  // origin, no auth). HA_TOKEN never leaves the server.
+  import ClockGreeting        from '$lib/components/ClockGreeting.svelte';
+  import WeatherStrip         from '$lib/components/WeatherStrip.svelte';
+  import CalendarPlaceholder  from '$lib/components/CalendarPlaceholder.svelte';
+  import ThermostatCard       from '$lib/components/ThermostatCard.svelte';
+  import DoorsGrid            from '$lib/components/DoorsGrid.svelte';
+  import MediaNowPlaying      from '$lib/components/MediaNowPlaying.svelte';
+  import QuickShortcuts       from '$lib/components/QuickShortcuts.svelte';
 
-  type Status = 'connecting' | 'connected' | 'error';
-  let status: Status = 'connecting';
-  let entityCount = 0;
-  let errorMessage = '';
-  let es: EventSource | undefined;
+  import {
+    weatherForecastHome,
+    climateLivingRoomThermostat,
+    binarySensorMainDoor,
+    binarySensorSideDoor,
+    binarySensorBackPerimeter,
+    binarySensorFrontSidePerimeter,
+    mediaPlayerMaindoorSpeaker,
+    type BinarySensorState,
+  } from '$lib/data/placeholder.js';
 
-  onMount(() => {
-    es = new EventSource('/api/ha');
+  import { startDoorSimulation, type DoorKey } from '$lib/data/simulateChanges.js';
 
-    es.onmessage = (event) => {
-      const data = JSON.parse(event.data) as {
-        connected: boolean;
-        entityCount: number;
-        error?: string;
-      };
-      if (data.connected) {
-        status = 'connected';
-        entityCount = data.entityCount;
-      } else {
-        status = 'error';
-        errorMessage = data.error ?? 'Lost connection to Home Assistant';
-      }
-    };
+  // ── Reactive state ─────────────────────────────────────────────────────────
 
-    es.onerror = () => {
-      status = 'error';
-      errorMessage = 'Could not reach /api/ha proxy';
-    };
+  const doors = $state({
+    mainDoor:           { ...binarySensorMainDoor }           as BinarySensorState,
+    sideDoor:           { ...binarySensorSideDoor }           as BinarySensorState,
+    backPerimeter:      { ...binarySensorBackPerimeter }      as BinarySensorState,
+    frontSidePerimeter: { ...binarySensorFrontSidePerimeter } as BinarySensorState,
   });
 
-  onDestroy(() => {
-    es?.close();
+  const pulseCounts = $state({
+    mainDoor:           0,
+    sideDoor:           0,
+    backPerimeter:      0,
+    frontSidePerimeter: 0,
+  });
+
+  // ── Simulation ─────────────────────────────────────────────────────────────
+
+  onMount(() => {
+    return startDoorSimulation((key: DoorKey, newState: BinarySensorState) => {
+      doors[key]       = newState;
+      pulseCounts[key] = pulseCounts[key] + 1;
+    });
   });
 </script>
 
-<main>
-  <div class="status-card">
-    {#if status === 'connecting'}
-      <p class="dot connecting" aria-label="Connecting"></p>
-      <p class="label">Connecting to Home Assistant…</p>
-    {:else if status === 'connected'}
-      <p class="dot connected" aria-label="Connected"></p>
-      <p class="label">Connected — {entityCount} entities found</p>
-    {:else}
-      <p class="dot error" aria-label="Error"></p>
-      <p class="label error-text">{errorMessage}</p>
-    {/if}
-  </div>
-</main>
+<div class="home">
+  <!-- Zone 1: Clock + greeting -->
+  <section class="zone zone-clock">
+    <ClockGreeting />
+  </section>
+
+  <!-- Zone 2: Weather -->
+  <section class="zone zone-weather">
+    <WeatherStrip weather={weatherForecastHome} />
+  </section>
+
+  <!-- Zone 3: Calendar -->
+  <section class="zone zone-calendar">
+    <CalendarPlaceholder />
+  </section>
+
+  <!-- Zone 4: Thermostat -->
+  <section class="zone zone-thermostat">
+    <ThermostatCard climate={climateLivingRoomThermostat} />
+  </section>
+
+  <!-- Zone 5: Doors -->
+  <section class="zone zone-doors">
+    <DoorsGrid
+      mainDoor={doors.mainDoor}
+      sideDoor={doors.sideDoor}
+      backPerimeter={doors.backPerimeter}
+      frontSidePerimeter={doors.frontSidePerimeter}
+      {pulseCounts}
+    />
+  </section>
+
+  <!-- Zone 6: Now playing -->
+  <section class="zone zone-media">
+    <MediaNowPlaying player={mediaPlayerMaindoorSpeaker} />
+  </section>
+
+  <!-- Zone 7: Quick shortcuts -->
+  <section class="zone zone-shortcuts">
+    <QuickShortcuts />
+  </section>
+</div>
 
 <style>
-  main {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100vw;
-    height: 100vh;
-    background-color: #1c1c1e;
+  .home {
+    height: 100%;
+    display: grid;
+    /* Zones proportional to spec: 9 17 10 13 13 10 8 (of 80) + row-gap */
+    grid-template-rows: 9fr 17fr 10fr 13fr 13fr 10fr 8fr;
+    row-gap: clamp(6px, 0.9vh, 14px);
+    padding: clamp(6px, 0.8vh, 12px) 5vw;
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
-  .status-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
-  }
-
-  .dot {
-    width: clamp(0.75rem, 1.5vw, 1rem);
-    height: clamp(0.75rem, 1.5vw, 1rem);
-    border-radius: 9999px;
-    margin: 0;
-  }
-
-  .dot.connecting {
-    background: rgba(235, 235, 245, 0.3);
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  .dot.connected {
-    background: #30d158;
-  }
-
-  .dot.error {
-    background: #ff453a;
-  }
-
-  .label {
-    font-size: clamp(1rem, 2.5vw, 1.5rem);
-    font-weight: 300;
-    letter-spacing: 0.02em;
-    color: rgba(235, 235, 245, 0.6);
-    margin: 0;
-    text-align: center;
-  }
-
-  .error-text {
-    color: #ff453a;
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 0.3;
-    }
-    50% {
-      opacity: 1;
-    }
+  .zone {
+    min-height: 0;
+    overflow: hidden;
   }
 </style>
