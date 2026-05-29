@@ -132,7 +132,14 @@ screensaver. Develop with code on Mac, runtime on Pi, view from Mac browser.\
 \
 ## Conventions\
 - TypeScript strict mode\
-- All HA entity references in src/lib/ha/stores.ts, never hardcoded in components\
+- All HA entity references and the WebSocket client live under\
+  src/lib/server/ha/ (server-only; SvelteKit enforces this). Client\
+  components subscribe to entity state via server-side endpoints or load\
+  functions, never by importing from src/lib/server/.\
+- The HA token (HA_TOKEN env var) must never appear in client-side code.\
+  Entity data flows into components via a +page.ts or +layout.ts load\
+  function, or through a +server.ts endpoint; never via direct import\
+  from src/lib/server/.\
 - Design tokens in src/lib/design/tokens.ts, never inline values\
 - Each session ends with `npm run build` passing on the Pi (not just the Mac)\
 - Each session ends with the sync command run and the Pi displaying the\
