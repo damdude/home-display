@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Droplets } from 'lucide-svelte';
+  import { Cloud } from 'lucide-svelte';
   import WeatherIcon from './WeatherIcon.svelte';
   import type { WeatherState } from '$lib/data/placeholder.js';
 
@@ -30,99 +30,167 @@
     return new Date(datetime).toLocaleDateString('en-US', { weekday: 'short' });
   }
 
-  let forecast = $derived(weather.attributes.forecast.slice(0, 7));
+  let forecast = $derived(weather.attributes.forecast.slice(0, 6));
 </script>
 
-<div class="strip">
-  <!-- Current conditions (left ~40%) -->
-  <div class="current">
-    <div class="current-main">
-      <span class="temp num">{weather.attributes.temperature}{weather.attributes.temperature_unit}</span>
-      <span class="cond-icon">
-        <WeatherIcon condition={weather.state} size={48} strokeWidth={1.3} />
-      </span>
-    </div>
-    <p class="cond-label">{condLabel(weather.state)}</p>
-    <div class="humidity">
-      <Droplets size={14} strokeWidth={1.8} />
-      <span class="num">{weather.attributes.humidity}%</span>
-    </div>
+<div class="weather">
+  <!-- Section label -->
+  <div class="section-label">
+    <Cloud size={13} strokeWidth={2} />
+    <span>Weather</span>
   </div>
 
-  <!-- 7-day forecast (right ~60%) -->
-  <div class="forecast">
-    {#each forecast as day, i}
-      <div class="day" class:today={i === 0}>
-        <span class="day-label">{dayLabel(day.datetime, i)}</span>
-        <span class="day-icon">
-          <WeatherIcon condition={day.condition} size={18} strokeWidth={1.5} />
+  <!-- Main card -->
+  <div class="card">
+    <!-- Top row: left (icon + condition) / right (temp + hi/lo) -->
+    <div class="top-row">
+      <div class="left">
+        <span class="cond-icon">
+          <WeatherIcon condition={weather.state} size={52} strokeWidth={1.2} />
         </span>
-        <span class="hi num">{day.temperature}°</span>
-        <span class="lo num">{day.templow}°</span>
+        <div class="cond-text">
+          <span class="cond-label">{condLabel(weather.state)}</span>
+          <span class="cond-sub">Forecast</span>
+        </div>
       </div>
-    {/each}
+
+      <div class="right">
+        <span class="temp num">{weather.attributes.temperature}{weather.attributes.temperature_unit}</span>
+        <div class="hi-lo">
+          <span class="hi num">H: {weather.attributes.forecast[0]?.temperature ?? '–'}°</span>
+          <span class="lo num">L: {weather.attributes.forecast[0]?.templow ?? '–'}°</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6-day strip -->
+    <div class="forecast">
+      {#each forecast as day, i}
+        <div class="day" class:today={i === 0}>
+          <span class="day-label">{dayLabel(day.datetime, i)}</span>
+          <span class="day-icon">
+            <WeatherIcon condition={day.condition} size={16} strokeWidth={1.5} />
+          </span>
+          <span class="hi num">{day.temperature}°</span>
+          <span class="lo num">{day.templow}°</span>
+        </div>
+      {/each}
+    </div>
   </div>
 </div>
 
 <style>
-  .strip {
-    display: flex;
-    gap: 4%;
+  .weather {
     height: 100%;
-    padding: 0.4rem 0;
-  }
-
-  /* ── Left: current conditions ── */
-  .current {
-    flex: 0 0 38%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 0.2em;
+    gap: 0.35rem;
   }
 
-  .current-main {
+  /* ── Section label ── */
+  .section-label {
     display: flex;
     align-items: center;
-    gap: 0.3em;
+    gap: 5px;
+    color: var(--color-text-tertiary);
+    font-size: var(--type-label);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0 0.2rem;
+  }
+
+  /* ── Card ── */
+  .card {
+    flex: 1;
+    min-height: 0;
+    background: var(--color-surface-1);
+    border-radius: 28px;
+    border: 1px solid var(--color-border);
+    box-shadow: inset 0 1px 0 var(--color-highlight);
+    padding: 0.75rem 1.4rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* ── Top row ── */
+  .top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .left {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .cond-icon {
+    color: var(--color-accent-info);
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+  }
+
+  .cond-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1em;
+  }
+
+  .cond-label {
+    font-size: var(--type-h1);
+    font-weight: 300;
+    color: var(--color-text-primary);
     line-height: 1;
+  }
+
+  .cond-sub {
+    font-size: var(--type-label);
+    font-weight: 500;
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
   }
 
   .temp {
     font-size: var(--type-temp);
     font-weight: 200;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    color: var(--color-text-primary);
+    line-height: 1;
+  }
+
+  .hi-lo {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .hi-lo .hi {
+    font-size: var(--type-caption);
+    font-weight: 500;
     color: var(--color-text-primary);
   }
 
-  .cond-icon {
-    color: var(--color-accent-blue);
-    opacity: 0.8;
-    display: flex;
-    align-items: center;
-  }
-
-  .cond-label {
-    font-size: var(--type-h2);
-    font-weight: 300;
-    color: var(--color-text-secondary);
-    margin: 0;
-  }
-
-  .humidity {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    color: var(--color-text-tertiary);
+  .hi-lo .lo {
     font-size: var(--type-caption);
+    font-weight: 400;
+    color: var(--color-text-tertiary);
   }
 
-  /* ── Right: 7-day forecast ── */
+  /* ── 6-day strip ── */
   .forecast {
-    flex: 1;
     display: flex;
-    align-items: stretch;
-    min-width: 0;
+    gap: 2px;
   }
 
   .day {
@@ -132,8 +200,8 @@
     align-items: center;
     justify-content: center;
     gap: 3px;
-    padding: 0.35rem 0;
-    border-radius: 12px;
+    padding: 0.3rem 0.2rem;
+    border-radius: 10px;
     min-width: 0;
   }
 
@@ -143,7 +211,7 @@
   }
 
   .day-icon {
-    color: var(--color-accent-blue);
+    color: var(--color-accent-info);
     opacity: 0.75;
     display: flex;
     align-items: center;
@@ -155,15 +223,16 @@
     color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.06em;
+    white-space: nowrap;
   }
 
-  .hi {
+  .day .hi {
     font-size: var(--type-caption);
     font-weight: 500;
     color: var(--color-text-primary);
   }
 
-  .lo {
+  .day .lo {
     font-size: var(--type-caption);
     font-weight: 400;
     color: var(--color-text-tertiary);
