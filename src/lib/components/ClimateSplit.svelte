@@ -1,8 +1,8 @@
 <!--
-  ClimateSplit — two-tile climate zone.
-  Left tile: current temp display + mode pill + setpoint + humidity.
-  Right tile: setpoint +/- controls + heat/cool/auto mode buttons.
-  Controls are visual-only this phase (Phase 1b wires them to HA).
+  ClimateSplit — two-tile climate zone (60/40 split).
+  Left: current temp + mode + setpoint + humidity display.
+  Right: setpoint +/- controls + heat/cool/auto mode buttons.
+  Controls are visual-only this phase (Phase 1b wires to HA).
 -->
 <script lang="ts">
   import { Thermometer, Wind, Droplets, Flame, Snowflake, RefreshCw } from 'lucide-svelte';
@@ -26,7 +26,6 @@
   let isHeating = $derived(climate.attributes.hvac_action === 'heating');
   let iconColor = $derived(isActive ? mode.color : 'var(--color-text-tertiary)');
 
-  // Setpoint displayed in the controls tile — cool → high, heat → low, else high
   let setpoint  = $derived(
     climate.state === 'heat'
       ? climate.attributes.target_temp_low
@@ -48,9 +47,9 @@
         <span class="current-temp num">{climate.attributes.current_temperature}°</span>
         <span class="mode-icon" style:color={iconColor} style:opacity={isActive ? '0.9' : '0.4'}>
           {#if isHeating}
-            <Thermometer size={28} strokeWidth={1.3} />
+            <Thermometer size={36} strokeWidth={1.2} />
           {:else}
-            <Wind size={28} strokeWidth={1.3} />
+            <Wind size={36} strokeWidth={1.2} />
           {/if}
         </span>
       </div>
@@ -72,7 +71,7 @@
       </div>
 
       <div class="humidity">
-        <span class="hum-icon"><Droplets size={13} strokeWidth={1.8} /></span>
+        <span class="hum-icon"><Droplets size={16} strokeWidth={1.8} /></span>
         <span class="num">48%</span>
         <span class="hum-label">Humidity</span>
       </div>
@@ -80,7 +79,6 @@
 
     <!-- ── Right tile: controls ── -->
     <div class="tile tile-controls">
-      <!-- Setpoint +/- stack -->
       <div class="setpoint-ctrl">
         <button class="adj-btn" aria-label="Increase setpoint">
           <span class="adj-sign">+</span>
@@ -91,7 +89,6 @@
         </button>
       </div>
 
-      <!-- Mode buttons: Heat / Cool / Auto -->
       <div class="mode-btns">
         <button
           class="mode-btn"
@@ -99,7 +96,7 @@
           aria-label="Heat mode"
           title="Heat"
         >
-          <Flame size={18} strokeWidth={1.6} />
+          <Flame size={24} strokeWidth={1.5} />
         </button>
         <button
           class="mode-btn"
@@ -107,7 +104,7 @@
           aria-label="Cool mode"
           title="Cool"
         >
-          <Snowflake size={18} strokeWidth={1.6} />
+          <Snowflake size={24} strokeWidth={1.5} />
         </button>
         <button
           class="mode-btn"
@@ -115,7 +112,7 @@
           aria-label="Auto mode"
           title="Auto"
         >
-          <RefreshCw size={18} strokeWidth={1.6} />
+          <RefreshCw size={24} strokeWidth={1.5} />
         </button>
       </div>
     </div>
@@ -123,7 +120,6 @@
 </div>
 
 <style>
-  /* ── Wrapper ── */
   .climate {
     height: 100%;
     display: flex;
@@ -131,7 +127,6 @@
     gap: 0.35rem;
   }
 
-  /* ── Section label ── */
   .section-label {
     display: flex;
     align-items: center;
@@ -144,7 +139,6 @@
     padding: 0 0.2rem;
   }
 
-  /* ── Two-tile row ── */
   .tiles {
     flex: 1;
     min-height: 0;
@@ -153,7 +147,6 @@
     gap: 8px;
   }
 
-  /* ── Shared tile shell ── */
   .tile {
     background: var(--color-surface-1);
     border-radius: 28px;
@@ -162,13 +155,13 @@
     overflow: hidden;
   }
 
-  /* ── Left: display tile ── */
+  /* ── Left: display ── */
   .tile-display {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.45rem;
-    padding: 0.85rem 1.4rem;
+    gap: 0.5rem;
+    padding: 0.9rem 1.5rem;
   }
 
   .temp-row {
@@ -178,8 +171,9 @@
     line-height: 1;
   }
 
+  /* Current temp: 72-84px — fills the left tile */
   .current-temp {
-    font-size: var(--type-temp);
+    font-size: clamp(56px, 5.83vw, 84px);
     font-weight: 200;
     letter-spacing: -0.03em;
     color: var(--color-text-primary);
@@ -195,12 +189,12 @@
   .mode-pill {
     display: inline-flex;
     align-self: flex-start;
-    padding: 3px 10px;
+    padding: 4px 12px;
     border-radius: 999px;
     border: 1px solid;
-    font-size: var(--type-label);
-    font-weight: 700;
-    letter-spacing: 0.06em;
+    font-size: clamp(14px, 1.67vw, 22px);
+    font-weight: 600;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
   }
 
@@ -211,13 +205,13 @@
   }
 
   .set-label {
-    font-size: var(--type-caption);
+    font-size: clamp(14px, 1.48vw, 22px);
     color: var(--color-text-tertiary);
     font-weight: 500;
   }
 
   .set-value {
-    font-size: var(--type-h2);
+    font-size: clamp(16px, 1.85vw, 26px);
     font-weight: 300;
     color: var(--color-text-primary);
     letter-spacing: -0.01em;
@@ -226,42 +220,36 @@
   .humidity {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     color: var(--color-text-secondary);
-    font-size: var(--type-caption);
+    font-size: clamp(14px, 1.48vw, 22px);
     opacity: 0.7;
   }
 
-  .hum-icon {
-    display: flex;
-    align-items: center;
-  }
+  .hum-icon { display: flex; align-items: center; }
+  .hum-label { color: var(--color-text-tertiary); }
 
-  .hum-label {
-    color: var(--color-text-tertiary);
-  }
-
-  /* ── Right: controls tile ── */
+  /* ── Right: controls ── */
   .tile-controls {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.7rem;
+    gap: 0.75rem;
     padding: 0.7rem 1rem;
   }
 
-  /* Setpoint +/- stack */
   .setpoint-ctrl {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.15rem;
+    gap: 0.1rem;
   }
 
+  /* +/- buttons: 64-72px — big enough to tap confidently */
   .adj-btn {
-    width: 48px;
-    height: 48px;
+    width: clamp(56px, 5.00vw, 72px);
+    height: clamp(56px, 5.00vw, 72px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -281,31 +269,32 @@
   }
 
   .adj-sign {
-    font-size: 22px;
+    font-size: clamp(20px, 1.85vw, 26px);
     font-weight: 300;
     line-height: 1;
     color: var(--color-text-primary);
     user-select: none;
   }
 
+  /* Setpoint value: 72-84px */
   .sp-value {
-    font-size: clamp(40px, 3.33vw, 52px);
+    font-size: clamp(56px, 5.83vw, 84px);
     font-weight: 200;
     letter-spacing: -0.03em;
     color: var(--color-text-primary);
     line-height: 1;
-    padding: 0.1em 0;
+    padding: 0.08em 0;
   }
 
-  /* Heat / Cool / Auto mode buttons */
+  /* Heat/Cool/Auto: 52-60px diameter */
   .mode-btns {
     display: flex;
     gap: 10px;
   }
 
   .mode-btn {
-    width: 36px;
-    height: 36px;
+    width: clamp(46px, 4.17vw, 60px);
+    height: clamp(46px, 4.17vw, 60px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -326,7 +315,5 @@
     color: var(--color-accent-climate);
   }
 
-  .mode-btn:active {
-    transform: scale(0.9);
-  }
+  .mode-btn:active { transform: scale(0.9); }
 </style>
