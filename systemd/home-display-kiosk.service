@@ -36,6 +36,7 @@ ExecStart=/bin/bash -c '\
   CHROME=$(command -v chromium || command -v chromium-browser || echo /usr/bin/chromium); \
   exec "$CHROME" \
     --kiosk \
+    --ozone-platform=wayland \
     --noerrdialogs \
     --disable-infobars \
     --no-first-run \
