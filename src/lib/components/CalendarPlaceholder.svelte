@@ -1,11 +1,10 @@
 <script lang="ts">
   import { Calendar } from 'lucide-svelte';
 
-  // Each event: dot color varies for visual variety (not semantic)
   const events = [
-    { time: '10:00 AM', title: 'Dentist Appointment', dotColor: 'var(--color-accent-info)'    },
-    { time: '2:00 PM',  title: 'Team Standup',        dotColor: 'var(--color-accent-light)'   },
-    { time: '7:00 PM',  title: 'Dinner with family',  dotColor: 'var(--color-accent-music)'   },
+    { time: '10:00 AM', title: 'Dentist Appointment' },
+    { time: '2:00 PM',  title: 'Team Standup'        },
+    { time: '7:00 PM',  title: 'Dinner with family'  },
   ];
 </script>
 
@@ -21,14 +20,8 @@
     <div class="events">
       {#each events as ev}
         <div class="event-row">
-          <!-- Colored dot -->
-          <span class="dot" style:background={ev.dotColor}></span>
-
-          <!-- Event title -->
+          <span class="time num">{ev.time}</span>
           <span class="title">{ev.title}</span>
-
-          <!-- Time pill -->
-          <span class="time-pill num">{ev.time}</span>
         </div>
       {/each}
     </div>
@@ -64,55 +57,43 @@
     border-radius: 28px;
     border: 1px solid var(--color-border);
     box-shadow: inset 0 1px 0 var(--color-highlight);
-    padding: 0 1.4rem;
     display: flex;
     align-items: center;
+    justify-content: center;
+    padding: 0 1.6rem;
   }
 
-  /* ── Events list ── */
+  /* ── Events: two-column grid ── */
   .events {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: clamp(12px, 1.4vh, 20px);
+    gap: clamp(14px, 1.6vh, 22px);
   }
 
   .event-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: clamp(110px, 11.11vw, 160px) 1fr;
+    align-items: baseline;
+    gap: 0.5rem;
   }
 
-  /* Dot */
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    opacity: 0.85;
+  /* Time — fixed-width left column */
+  .time {
+    font-size: clamp(15px, 1.39vw, 20px);
+    font-weight: 500;
+    color: var(--color-accent-info);
+    opacity: 0.8;
+    white-space: nowrap;
   }
 
-  /* Title — takes all available middle space */
+  /* Title — flex right column */
   .title {
-    flex: 1;
-    font-size: clamp(16px, 1.67vw, 24px);
+    font-size: clamp(17px, 1.81vw, 26px);
     font-weight: 500;
     color: var(--color-text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  /* Time pill — right-aligned */
-  .time-pill {
-    flex-shrink: 0;
-    font-size: clamp(13px, 1.25vw, 18px);
-    font-weight: 400;
-    color: var(--color-text-tertiary);
-    background: var(--color-surface-2);
-    border: 1px solid var(--color-border);
-    border-radius: 999px;
-    padding: 3px 10px;
-    white-space: nowrap;
   }
 </style>
