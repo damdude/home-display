@@ -22,11 +22,11 @@
   {#each pills as pill (pill.id)}
     <div
       class="pill"
-      class:alert={pill.isAlert}
       class:triggered={pill.isTriggered}
+      style:--pill-color={pill.dotColor}
     >
       <!-- 1. Colored dot — leads, primary glance affordance -->
-      <span class="pill-dot" style:background={pill.dotColor}></span>
+      <span class="pill-dot"></span>
 
       <!-- 2. Icon -->
       <span class="pill-icon">
@@ -50,8 +50,8 @@
       <!-- 3. Label -->
       <span class="pill-label">{pill.label}</span>
 
-      <!-- 4. Status -->
-      <span class="pill-status" class:alert-text={pill.isAlert}>
+      <!-- 4. Status — always uses the pill's own color -->
+      <span class="pill-status">
         {pill.status}
       </span>
     </div>
@@ -73,15 +73,10 @@
     padding: 5px 10px 5px 8px;
     border-radius: 999px;
     background: var(--color-surface-1);
-    border: 1px solid var(--color-border);
+    /* Border always tinted by the pill's own status color */
+    border: 1px solid color-mix(in srgb, var(--pill-color) 35%, transparent);
     box-shadow: inset 0 1px 0 var(--color-highlight);
     white-space: nowrap;
-    transition: border-color 300ms cubic-bezier(0.32, 0.72, 0, 1);
-  }
-
-  /* Alert border tint (armed/open states) */
-  .pill.alert {
-    border-color: color-mix(in srgb, var(--color-accent-triggered) 30%, transparent);
   }
 
   /* Triggered: continuous pulse until state changes */
@@ -106,6 +101,7 @@
     height: 7px;
     border-radius: 50%;
     flex-shrink: 0;
+    background: var(--pill-color);
     opacity: 0.9;
   }
 
@@ -126,17 +122,11 @@
     letter-spacing: 0.01em;
   }
 
-  /* ── Status ── */
+  /* ── Status — colored to match dot and border ── */
   .pill-status {
     font-size: clamp(12px, 0.97vw, 14px);
-    font-weight: 400;
-    color: var(--color-text-tertiary);
+    font-weight: 500;
+    color: var(--pill-color);
     letter-spacing: 0.01em;
-  }
-
-  .pill-status.alert-text {
-    color: var(--color-accent-triggered);
-    opacity: 1;
-    font-weight: 600;
   }
 </style>
