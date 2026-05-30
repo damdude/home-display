@@ -10,6 +10,24 @@
 /** Flip to true to preview Music zone State B (now-playing) */
 export const MUSIC_DEMO_PLAYING = false;
 
+// ── Status pill types ───────────────────────────────────────────────────────
+
+export type PillIconId =
+  | 'shield-check' | 'shield-alert' | 'shield' | 'shield-off'
+  | 'door-open' | 'door-closed'
+  | 'lightbulb';
+
+export interface PillDescriptor {
+  id:        string;
+  iconId:    PillIconId;
+  label:     string;
+  status:    string;
+  /** CSS color reference for the dot, e.g. 'var(--color-accent-safe)' */
+  dotColor:  string;
+  /** When true: status text renders at full opacity in --color-accent-alert */
+  isAlert:   boolean;
+}
+
 // ── Types ───────────────────────────────────────────────────────────────────
 
 export interface WeatherForecastDay {
