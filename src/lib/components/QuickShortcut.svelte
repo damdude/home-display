@@ -34,7 +34,8 @@
   }
 
   .icon-circle {
-    width: clamp(48px, 6.5vh, 70px);
+    /* 80-88px — fills the 9% zone height comfortably */
+    width: clamp(72px, 6.11vw, 88px);
     aspect-ratio: 1;
     border-radius: 50%;
     background: color-mix(in srgb, var(--sc-color) 16%, var(--color-surface-1));
@@ -54,7 +55,7 @@
   }
 
   .label {
-    font-size: var(--type-caption);
+    font-size: clamp(14px, 1.39vw, 20px);
     font-weight: 500;
     color: var(--color-text-secondary);
     text-align: center;
