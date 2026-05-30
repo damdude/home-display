@@ -17,6 +17,16 @@ export const raw = {
     light:   '#C4A572',
     neutral: '#8E8E93',
   },
+  // Per-condition colors for WeatherIcon — avoids relying on a single accent
+  weather: {
+    sunny:       '#E6C547',  // warm yellow
+    partlyCloudy:'#C8B84A',  // muted yellow (sun side)
+    cloudy:      '#8B9DAD',  // cool grey-blue
+    rainy:       '#6B8FA8',  // deeper blue-grey
+    snowy:       '#A8C4D4',  // light blue-white
+    night:       '#7B8FB5',  // muted indigo
+    fog:         '#9CA3A7',  // neutral pale grey (lighter than cloudy)
+  },
 } as const;
 
 // CSS variable references — for style="" bindings
