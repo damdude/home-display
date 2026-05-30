@@ -15,20 +15,20 @@
     <span>Now Playing</span>
   </div>
 
-  <!-- Card: horizontal split -->
+  <!-- Card: horizontal split — artwork left, controls right -->
   <div class="card">
-    <!-- Left: artwork square -->
+    <!-- Left: artwork square, viewport-responsive -->
     <div class="artwork">
       {#if player.attributes.entity_picture}
         <img src={player.attributes.entity_picture} alt="Album art" class="art-img" />
       {:else}
         <div class="art-placeholder">
-          <Music2 size={36} strokeWidth={1.2} />
+          <Music2 size={44} strokeWidth={1.2} />
         </div>
       {/if}
     </div>
 
-    <!-- Right: track info + controls -->
+    <!-- Right: track info + transport -->
     <div class="info">
       <div class="track">
         <p class="title" class:idle={!hasMedia}>
@@ -37,19 +37,18 @@
         {#if hasMedia && player.attributes.media_artist}
           <p class="artist">{player.attributes.media_artist}</p>
         {:else}
-          <!-- Empty spacer preserves layout height -->
           <p class="artist idle-spacer" aria-hidden="true">&nbsp;</p>
         {/if}
       </div>
 
       <!-- Progress bar -->
-      <div class="progress-track">
+      <div class="progress-track" style:opacity={hasMedia ? '1' : '0.3'}>
         {#if hasMedia}
           <div class="progress-fill" style:width="38%"></div>
         {/if}
       </div>
 
-      <!-- Transport controls -->
+      <!-- Transport: prev · play/pause · next -->
       <div class="controls">
         <button
           class="ctrl"
@@ -57,7 +56,7 @@
           style:opacity={hasMedia ? '1' : '0.4'}
           disabled={!hasMedia}
         >
-          <SkipBack size={24} strokeWidth={1.6} />
+          <SkipBack size={28} strokeWidth={1.6} />
         </button>
 
         <button
@@ -66,9 +65,9 @@
           style:opacity={hasMedia ? '1' : '0.4'}
         >
           {#if isPlaying}
-            <Pause size={26} strokeWidth={1.5} />
+            <Pause size={32} strokeWidth={1.4} />
           {:else}
-            <Play size={26} strokeWidth={1.5} />
+            <Play size={32} strokeWidth={1.4} />
           {/if}
         </button>
 
@@ -78,7 +77,7 @@
           style:opacity={hasMedia ? '1' : '0.4'}
           disabled={!hasMedia}
         >
-          <SkipForward size={24} strokeWidth={1.6} />
+          <SkipForward size={28} strokeWidth={1.6} />
         </button>
       </div>
     </div>
@@ -93,7 +92,6 @@
     gap: 0.35rem;
   }
 
-  /* ── Section label ── */
   .section-label {
     display: flex;
     align-items: center;
@@ -106,7 +104,7 @@
     padding: 0 0.2rem;
   }
 
-  /* ── Card: horizontal layout ── */
+  /* ── Card ── */
   .card {
     flex: 1;
     min-height: 0;
@@ -114,17 +112,17 @@
     border-radius: 28px;
     border: 1px solid var(--color-border);
     box-shadow: inset 0 1px 0 var(--color-highlight);
-    padding: 0.85rem 1.4rem;
+    padding: 0.9rem 1.6rem;
     display: flex;
     align-items: center;
-    gap: 1.4rem;
+    gap: 1.6rem;
   }
 
-  /* ── Left: artwork ── */
+  /* ── Artwork: scales with viewport width ── */
   .artwork {
     flex-shrink: 0;
-    /* Size relative to zone height; portrait display, zone is ~14% of 2560px ≈ 358px → ~180px art */
-    width: clamp(80px, 12.5vw, 180px);
+    /* vw-based so it adapts at 1280 and 1440; square always */
+    width: clamp(100px, 15.28vw, 220px);
     aspect-ratio: 1;
     border-radius: 16px;
     overflow: hidden;
@@ -147,14 +145,14 @@
     opacity: 0.35;
   }
 
-  /* ── Right: info column ── */
+  /* ── Right column ── */
   .info {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.55rem;
+    gap: 0.6rem;
   }
 
   .track {
@@ -164,8 +162,9 @@
     min-width: 0;
   }
 
+  /* Track title: 36-40px */
   .title {
-    font-size: clamp(18px, 1.94vw, 28px);
+    font-size: clamp(26px, 2.78vw, 40px);
     font-weight: 600;
     color: var(--color-text-primary);
     margin: 0;
@@ -179,8 +178,9 @@
     opacity: 0.6;
   }
 
+  /* Artist: 24-26px */
   .artist {
-    font-size: clamp(14px, 1.39vw, 20px);
+    font-size: clamp(18px, 2.08vw, 30px);
     font-weight: 400;
     color: var(--color-text-secondary);
     margin: 0;
@@ -190,40 +190,38 @@
     opacity: 0.75;
   }
 
-  .artist.idle-spacer {
-    opacity: 0;
-  }
+  .artist.idle-spacer { opacity: 0; }
 
-  /* Progress bar */
+  /* Progress bar: 6-8px height */
   .progress-track {
     width: 100%;
-    height: 4px;
+    height: 7px;
     background: var(--color-surface-2);
     border-radius: 999px;
     overflow: hidden;
-    opacity: 0.5;
   }
 
   .progress-fill {
     height: 100%;
     background: var(--color-accent-music);
     border-radius: 999px;
-    opacity: 0.9;
+    opacity: 0.85;
   }
 
-  /* Transport controls */
+  /* Transport */
   .controls {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
   }
 
+  /* Prev/Next: 52-56px */
   .ctrl {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: clamp(44px, 3.89vw, 56px);
+    height: clamp(44px, 3.89vw, 56px);
     border-radius: 50%;
     border: none;
     background: transparent;
@@ -244,9 +242,10 @@
     pointer-events: none;
   }
 
+  /* Play/Pause: 84-96px */
   .ctrl.play-btn {
-    width: 56px;
-    height: 56px;
+    width: clamp(72px, 6.67vw, 96px);
+    height: clamp(72px, 6.67vw, 96px);
     background: color-mix(in srgb, var(--color-accent-music) 16%, var(--color-surface-2));
     border: 1px solid color-mix(in srgb, var(--color-accent-music) 28%, transparent);
     color: var(--color-accent-music);
