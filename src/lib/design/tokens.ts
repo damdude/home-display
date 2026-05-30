@@ -9,13 +9,14 @@
 // Raw values — for JS logic that needs real color strings
 export const raw = {
   accent: {
-    climate: '#D7906A',
-    safe:    '#6B9B7D',
-    alert:   '#C66B6B',
-    info:    '#6B8FB5',
-    music:   '#9B7BB5',
-    light:   '#C4A572',
-    neutral: '#8E8E93',
+    climate:   '#D7906A',
+    safe:      '#6B9B7D',  // sage  — closed doors, disarmed security
+    alert:     '#A89876',  // wheat — open doors (warm, not alarming)
+    triggered: '#C66B6B',  // deep red — armed security, triggered alarm
+    info:      '#6B8FB5',
+    music:     '#9B7BB5',
+    light:     '#C4A572',
+    neutral:   '#8E8E93',
   },
   // Per-condition colors for WeatherIcon — avoids relying on a single accent
   weather: {
@@ -40,13 +41,14 @@ export const cv = {
   },
   border: 'var(--color-border)',
   accent: {
-    climate: 'var(--color-accent-climate)',
-    safe:    'var(--color-accent-safe)',
-    alert:   'var(--color-accent-alert)',
-    info:    'var(--color-accent-info)',
-    music:   'var(--color-accent-music)',
-    light:   'var(--color-accent-light)',
-    neutral: 'var(--color-accent-neutral)',
+    climate:   'var(--color-accent-climate)',
+    safe:      'var(--color-accent-safe)',
+    alert:     'var(--color-accent-alert)',
+    triggered: 'var(--color-accent-triggered)',
+    info:      'var(--color-accent-info)',
+    music:     'var(--color-accent-music)',
+    light:     'var(--color-accent-light)',
+    neutral:   'var(--color-accent-neutral)',
   },
   text: {
     primary:   'var(--color-text-primary)',

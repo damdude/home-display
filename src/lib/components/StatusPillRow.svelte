@@ -1,10 +1,11 @@
 <!--
-  StatusPillRow — horizontal row of status pills that wraps to a second row
-  when there are too many pills to fit.
+  StatusPillRow — horizontal flex-wrap row of status pills.
 
-  Each pill: icon (left) · label · status · colored-dot (right).
-  Data source: array of PillDescriptor objects, defined in +page.svelte
-  as a $derived from reactive sensor state.
+  Pill content order (left → right): dot · icon · label · status
+  The dot is the primary at-a-glance affordance, so it leads.
+
+  isTriggered=true applies a continuous opacity pulse (not a one-shot
+  AttentionPulse — this stays until state changes back).
 -->
 <script lang="ts">
   import {
@@ -19,8 +20,15 @@
 
 <div class="pill-row">
   {#each pills as pill (pill.id)}
-    <div class="pill" class:alert={pill.isAlert}>
-      <!-- Icon (varies by state — no svelte:component in runes mode) -->
+    <div
+      class="pill"
+      class:alert={pill.isAlert}
+      class:triggered={pill.isTriggered}
+    >
+      <!-- 1. Colored dot — leads, primary glance affordance -->
+      <span class="pill-dot" style:background={pill.dotColor}></span>
+
+      <!-- 2. Icon -->
       <span class="pill-icon">
         {#if pill.iconId === 'shield-check'}
           <ShieldCheck size={15} strokeWidth={2} />
@@ -39,20 +47,13 @@
         {/if}
       </span>
 
-      <!-- Label -->
+      <!-- 3. Label -->
       <span class="pill-label">{pill.label}</span>
 
-      <!-- Status text -->
-      <span
-        class="pill-status"
-        class:alert-text={pill.isAlert}
-      >{pill.status}</span>
-
-      <!-- Colored dot -->
-      <span
-        class="pill-dot"
-        style:background={pill.dotColor}
-      ></span>
+      <!-- 4. Status -->
+      <span class="pill-status" class:alert-text={pill.isAlert}>
+        {pill.status}
+      </span>
     </div>
   {/each}
 </div>
@@ -62,7 +63,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    /* Let rows align left; pills flow naturally */
   }
 
   /* ── Pill shell ── */
@@ -75,13 +75,38 @@
     background: var(--color-surface-1);
     border: 1px solid var(--color-border);
     box-shadow: inset 0 1px 0 var(--color-highlight);
-    /* Subtle lift when alert */
-    transition: border-color 300ms cubic-bezier(0.32, 0.72, 0, 1);
     white-space: nowrap;
+    transition: border-color 300ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
+  /* Alert border tint (armed/open states) */
   .pill.alert {
-    border-color: color-mix(in srgb, var(--color-accent-alert) 35%, transparent);
+    border-color: color-mix(in srgb, var(--color-accent-triggered) 30%, transparent);
+  }
+
+  /* Triggered: continuous pulse until state changes */
+  .pill.triggered {
+    animation: triggeredPulse 1.5s cubic-bezier(0.32, 0.72, 0, 1) infinite;
+  }
+
+  @keyframes triggeredPulse {
+    0%, 100% {
+      opacity: 0.6;
+      box-shadow: 0 0 0 0 transparent;
+    }
+    50% {
+      opacity: 1;
+      box-shadow: 0 0 8px 1px color-mix(in srgb, var(--color-accent-triggered) 30%, transparent);
+    }
+  }
+
+  /* ── Dot ── */
+  .pill-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.9;
   }
 
   /* ── Icon ── */
@@ -110,17 +135,8 @@
   }
 
   .pill-status.alert-text {
-    color: var(--color-accent-alert);
+    color: var(--color-accent-triggered);
     opacity: 1;
-    font-weight: 500;
-  }
-
-  /* ── Dot ── */
-  .pill-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    opacity: 0.9;
+    font-weight: 600;
   }
 </style>

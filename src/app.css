@@ -15,10 +15,11 @@
   --color-highlight: rgba(255, 255, 255, 0.04);
   --color-border:    rgba(255, 255, 255, 0.07);
 
-  --color-accent-climate: #d7906a;
-  --color-accent-safe:    #6b9b7d;
-  --color-accent-alert:   #c66b6b;
-  --color-accent-info:    #6b8fb5;
+  --color-accent-climate:   #d7906a;
+  --color-accent-safe:      #6b9b7d;  /* sage  — closed/disarmed */
+  --color-accent-alert:     #a89876;  /* wheat — open doors */
+  --color-accent-triggered: #c66b6b;  /* deep red — armed/triggered */
+  --color-accent-info:      #6b8fb5;
   --color-accent-music:   #9b7bb5;
   --color-accent-light:   #c4a572;
   --color-accent-neutral: #8e8e93;
@@ -39,10 +40,11 @@
   --color-highlight: rgba(0, 0, 0, 0.02);
   --color-border:    rgba(0, 0, 0, 0.10);
 
-  --color-accent-climate: #b8623e;
-  --color-accent-safe:    #3d7a52;
-  --color-accent-alert:   #a83030;
-  --color-accent-info:    #2e619a;
+  --color-accent-climate:   #b8623e;
+  --color-accent-safe:      #3d7a52;
+  --color-accent-alert:     #8a6b40;  /* wheat, darkened for light mode */
+  --color-accent-triggered: #a83030;  /* deep red, darkened for light mode */
+  --color-accent-info:      #2e619a;
   --color-accent-music:   #6e3fa0;
   --color-accent-light:   #8a6b2e;
   --color-accent-neutral: #6e6e73;
