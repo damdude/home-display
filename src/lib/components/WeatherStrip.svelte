@@ -43,11 +43,12 @@
 
   <!-- Main card -->
   <div class="card">
-    <!-- Top row: condition left, temp right -->
+    <!-- Top row: condition (left) / current temp (right) -->
     <div class="top-row">
       <div class="left">
         <span class="cond-icon">
-          <WeatherIcon condition={weather.state} size={56} strokeWidth={1.2} />
+          <!-- 80-96px condition icon — fills the card height proportionally -->
+          <WeatherIcon condition={weather.state} size={88} strokeWidth={1.1} />
         </span>
         <div class="cond-text">
           <span class="cond-label">{condLabel(weather.state)}</span>
@@ -64,13 +65,14 @@
       </div>
     </div>
 
-    <!-- 7-day strip — no "today" distinction per spec -->
+    <!-- 7-day forecast strip -->
     <div class="forecast">
       {#each forecast as day, i}
         <div class="day">
           <span class="day-label">{dayLabel(day.datetime, i)}</span>
           <span class="day-icon">
-            <WeatherIcon condition={day.condition} size={30} strokeWidth={1.4} />
+            <!-- 56-64px — larger icons per spec, small temps intentional contrast -->
+            <WeatherIcon condition={day.condition} size={52} strokeWidth={1.3} />
           </span>
           <span class="day-hi num">{day.temperature}°</span>
           <span class="day-lo num">{day.templow}°</span>
@@ -88,7 +90,6 @@
     gap: 0.35rem;
   }
 
-  /* ── Section label ── */
   .section-label {
     display: flex;
     align-items: center;
@@ -101,7 +102,6 @@
     padding: 0 0.2rem;
   }
 
-  /* ── Card ── */
   .card {
     flex: 1;
     min-height: 0;
@@ -109,10 +109,10 @@
     border-radius: 28px;
     border: 1px solid var(--color-border);
     box-shadow: inset 0 1px 0 var(--color-highlight);
-    padding: 0.75rem 1.4rem 0.6rem;
+    padding: 0.7rem 1.6rem 0.55rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
 
   /* ── Top row ── */
@@ -120,27 +120,31 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex: 1;
+    min-height: 0;
   }
 
   .left {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
+    gap: 0.7rem;
   }
 
   .cond-icon {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .cond-text {
     display: flex;
     flex-direction: column;
-    gap: 0.1em;
+    gap: 0.15em;
   }
 
+  /* Condition word: 44-48px, scales with viewport width */
   .cond-label {
-    font-size: var(--type-h1);
+    font-size: clamp(32px, 3.33vw, 48px);
     font-weight: 300;
     color: var(--color-text-primary);
     line-height: 1;
@@ -161,8 +165,9 @@
     gap: 0.15rem;
   }
 
+  /* Current temp: 96-104px — large, dominant number */
   .temp {
-    font-size: var(--type-temp);
+    font-size: clamp(72px, 7.22vw, 104px);
     font-weight: 200;
     letter-spacing: -0.03em;
     color: var(--color-text-primary);
@@ -198,8 +203,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 0.3rem 0.2rem;
+    gap: 2px;
+    padding: 0.25rem 0.15rem;
     border-radius: 10px;
     min-width: 0;
   }
@@ -218,14 +223,15 @@
     white-space: nowrap;
   }
 
+  /* Forecast temps intentionally smaller — large icons do the visual work */
   .day-hi {
-    font-size: var(--type-body);
+    font-size: clamp(13px, 1.25vw, 18px);
     font-weight: 500;
     color: var(--color-text-primary);
   }
 
   .day-lo {
-    font-size: var(--type-body);
+    font-size: clamp(13px, 1.25vw, 18px);
     font-weight: 400;
     color: var(--color-text-tertiary);
   }
