@@ -16,6 +16,7 @@
     'snowy-rainy':     'Wintry Mix',
     'windy':           'Windy',
     'windy-variant':   'Windy',
+    'fog':             'Foggy',
     'lightning':       'Thunderstorm',
     'lightning-rainy': 'Thunderstorm',
   };
@@ -30,7 +31,7 @@
     return new Date(datetime).toLocaleDateString('en-US', { weekday: 'short' });
   }
 
-  let forecast = $derived(weather.attributes.forecast.slice(0, 6));
+  let forecast = $derived(weather.attributes.forecast.slice(0, 7));
 </script>
 
 <div class="weather">
@@ -42,11 +43,11 @@
 
   <!-- Main card -->
   <div class="card">
-    <!-- Top row: left (icon + condition) / right (temp + hi/lo) -->
+    <!-- Top row: condition left, temp right -->
     <div class="top-row">
       <div class="left">
         <span class="cond-icon">
-          <WeatherIcon condition={weather.state} size={52} strokeWidth={1.2} />
+          <WeatherIcon condition={weather.state} size={56} strokeWidth={1.2} />
         </span>
         <div class="cond-text">
           <span class="cond-label">{condLabel(weather.state)}</span>
@@ -63,16 +64,16 @@
       </div>
     </div>
 
-    <!-- 6-day strip -->
+    <!-- 7-day strip — no "today" distinction per spec -->
     <div class="forecast">
       {#each forecast as day, i}
-        <div class="day" class:today={i === 0}>
+        <div class="day">
           <span class="day-label">{dayLabel(day.datetime, i)}</span>
           <span class="day-icon">
-            <WeatherIcon condition={day.condition} size={16} strokeWidth={1.5} />
+            <WeatherIcon condition={day.condition} size={30} strokeWidth={1.4} />
           </span>
-          <span class="hi num">{day.temperature}°</span>
-          <span class="lo num">{day.templow}°</span>
+          <span class="day-hi num">{day.temperature}°</span>
+          <span class="day-lo num">{day.templow}°</span>
         </div>
       {/each}
     </div>
@@ -124,12 +125,10 @@
   .left {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 0.65rem;
   }
 
   .cond-icon {
-    color: var(--color-accent-info);
-    opacity: 0.85;
     display: flex;
     align-items: center;
   }
@@ -175,19 +174,19 @@
     gap: 0.5rem;
   }
 
-  .hi-lo .hi {
+  .hi {
     font-size: var(--type-caption);
     font-weight: 500;
     color: var(--color-text-primary);
   }
 
-  .hi-lo .lo {
+  .lo {
     font-size: var(--type-caption);
     font-weight: 400;
     color: var(--color-text-tertiary);
   }
 
-  /* ── 6-day strip ── */
+  /* ── 7-day forecast strip ── */
   .forecast {
     display: flex;
     gap: 2px;
@@ -205,14 +204,7 @@
     min-width: 0;
   }
 
-  .day.today {
-    background: var(--color-surface-2);
-    box-shadow: inset 0 1px 0 var(--color-highlight);
-  }
-
   .day-icon {
-    color: var(--color-accent-info);
-    opacity: 0.75;
     display: flex;
     align-items: center;
   }
@@ -226,14 +218,14 @@
     white-space: nowrap;
   }
 
-  .day .hi {
-    font-size: var(--type-caption);
+  .day-hi {
+    font-size: var(--type-body);
     font-weight: 500;
     color: var(--color-text-primary);
   }
 
-  .day .lo {
-    font-size: var(--type-caption);
+  .day-lo {
+    font-size: var(--type-body);
     font-weight: 400;
     color: var(--color-text-tertiary);
   }

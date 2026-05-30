@@ -1,13 +1,12 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { Home, Shield, Music, SlidersHorizontal } from 'lucide-svelte';
+  import { Home, Shield, Music, LayoutGrid } from 'lucide-svelte';
 
-  // Inline each icon per tab to avoid <svelte:component> dynamic dispatch
   const tabs = [
     { href: '/',         label: 'Home',     id: 'home'     },
     { href: '/security', label: 'Security', id: 'security' },
     { href: '/music',    label: 'Music',    id: 'music'    },
-    { href: '/controls', label: 'Controls', id: 'controls' },
+    { href: '/zones',    label: 'Zones',    id: 'zones'    },
   ] as const;
 </script>
 
@@ -17,13 +16,13 @@
     <a href={tab.href} class="tab" class:active>
       <span class="icon">
         {#if tab.id === 'home'}
-          <Home     size={24} strokeWidth={active ? 2.2 : 1.6} />
+          <Home     size={36} strokeWidth={active ? 2.0 : 1.5} />
         {:else if tab.id === 'security'}
-          <Shield   size={24} strokeWidth={active ? 2.2 : 1.6} />
+          <Shield   size={36} strokeWidth={active ? 2.0 : 1.5} />
         {:else if tab.id === 'music'}
-          <Music    size={24} strokeWidth={active ? 2.2 : 1.6} />
+          <Music    size={36} strokeWidth={active ? 2.0 : 1.5} />
         {:else}
-          <SlidersHorizontal size={24} strokeWidth={active ? 2.2 : 1.6} />
+          <LayoutGrid size={36} strokeWidth={active ? 2.0 : 1.5} />
         {/if}
       </span>
       <span class="label">{tab.label}</span>
@@ -45,15 +44,19 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 4px;
+    padding: 0.5rem 0;
     text-decoration: none;
-    color: var(--color-text-tertiary);
-    transition: color 300ms cubic-bezier(0.32, 0.72, 0, 1);
+    color: var(--color-text-secondary);
+    opacity: 0.6;
+    transition: color 300ms cubic-bezier(0.32, 0.72, 0, 1),
+                opacity 300ms cubic-bezier(0.32, 0.72, 0, 1);
     -webkit-tap-highlight-color: transparent;
   }
 
   .tab.active {
-    color: var(--color-accent-blue);
+    color: var(--color-accent-info);
+    opacity: 1;
   }
 
   .icon {
@@ -63,7 +66,7 @@
   }
 
   .label {
-    font-size: var(--type-caption);
+    font-size: 16px;
     font-weight: 500;
     letter-spacing: 0.01em;
   }
