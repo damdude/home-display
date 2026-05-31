@@ -302,7 +302,7 @@
 {#if fullscreenCamera}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="fs-backdrop" onclick={closeCamera}>
-    <div class="fs-frame" onclick|stopPropagation>
+    <div class="fs-frame" onclick={(e) => e.stopPropagation()}>
       <img
         class="fs-feed"
         src="/api/camera/{fullscreenCamera}?t={fullscreenKey}"
