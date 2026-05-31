@@ -1,8 +1,9 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
-  import { fade }    from 'svelte/transition';
-  import { page }    from '$app/stores';
+  import { fade }     from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { page }     from '$app/stores';
   import type { Snippet } from 'svelte';
   import TopStrip      from '$lib/components/TopStrip.svelte';
   import StatusPillRow from '$lib/components/StatusPillRow.svelte';
@@ -125,8 +126,8 @@
     {#key $page.url.pathname}
       <div
         class="route-fade"
-        in:fade={{ duration: 200, easing: t => t < 0.5 ? 4*t*t*t : 1-(-2*t+2)**3/2 }}
-        out:fade={{ duration: 200, easing: t => t < 0.5 ? 4*t*t*t : 1-(-2*t+2)**3/2 }}
+        in:fade={{ duration: 300, delay: 200, easing: cubicOut }}
+        out:fade={{ duration: 200, easing: cubicOut }}
       >
         {@render children()}
       </div>
