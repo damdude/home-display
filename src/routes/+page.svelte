@@ -300,10 +300,8 @@
     overflow: hidden;
   }
 
-  /* Pills zone: wider than the rest — extends 2vw beyond the page padding on
-     each side. Overflow visible so wrapped rows aren't clipped. */
+  /* Pills zone must not clip wrapped rows; horizontal edges match all other zones */
   .zone-pills {
     overflow: visible;
-    margin-inline: -2vw;
   }
 </style>
