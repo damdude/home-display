@@ -1,38 +1,172 @@
 <script lang="ts">
   import '../app.css';
   import { onMount } from 'svelte';
+  import { fade }    from 'svelte/transition';
+  import { page }    from '$app/stores';
   import type { Snippet } from 'svelte';
-  import BottomNav from '$lib/components/BottomNav.svelte';
+  import TopStrip      from '$lib/components/TopStrip.svelte';
+  import StatusPillRow from '$lib/components/StatusPillRow.svelte';
+  import BottomNav     from '$lib/components/BottomNav.svelte';
   import { startHaStream } from '$lib/stores/ha.svelte.js';
+  import { haStore }       from '$lib/stores/ha.svelte.js';
+
+  import {
+    alarmSecurityPartition1,
+    binarySensorMainDoor,
+    binarySensorSideDoor,
+    binarySensorBackPerimeter,
+    binarySensorFrontSidePerimeter,
+    TRIGGERED_DEMO,
+    type AlarmState,
+    type BinarySensorState,
+    type PillDescriptor,
+    type PillIconId,
+  } from '$lib/data/placeholder.js';
 
   let { children }: { children: Snippet } = $props();
 
-  onMount(() => {
-    // Open the /api/ha SSE stream once for the lifetime of the app.
-    // Returns a cleanup function that closes the EventSource on unmount.
-    return startHaStream();
+  // ── HA stream ───────────────────────────────────────────────────────────────
+  onMount(() => startHaStream());
+
+  // ── Entity ID constants (shared with +page.svelte) ──────────────────────────
+  const EID = {
+    alarm:     'alarm_control_panel.security_partition_1',
+    mainDoor:  'binary_sensor.main_door',
+    sideDoor:  'binary_sensor.security_zone_5',
+    backPerim: 'binary_sensor.back_perimeter',
+    frontPerim:'binary_sensor.front_side_perimeter',
+    lights:    'switch.outdoor_lights_outlet1',
+  } as const;
+
+  function entity(id: string) { return haStore.entities[id]; }
+
+  // ── Alarm pill ──────────────────────────────────────────────────────────────
+  let alarmEntity = $derived(entity(EID.alarm));
+  let alarm = $derived<AlarmState>({
+    state: TRIGGERED_DEMO
+      ? 'triggered'
+      : ((alarmEntity?.state ?? alarmSecurityPartition1.state) as AlarmState['state']),
+    attributes: {
+      friendly_name:
+        alarmEntity?.attributes?.friendly_name
+          ?? alarmSecurityPartition1.attributes.friendly_name,
+    },
   });
+
+  function alarmPill(): PillDescriptor {
+    const map: Record<string, {
+      iconId: PillIconId; status: string; dotColor: string;
+      isAlert: boolean; isTriggered?: boolean;
+    }> = {
+      disarmed:   { iconId: 'shield-check', status: 'Disarmed',
+                    dotColor: 'var(--color-accent-safe)',      isAlert: false },
+      armed_home: { iconId: 'shield',       status: 'Armed Home',
+                    dotColor: 'var(--color-accent-triggered)', isAlert: true  },
+      armed_away: { iconId: 'shield-alert', status: 'Armed Away',
+                    dotColor: 'var(--color-accent-triggered)', isAlert: true  },
+      triggered:  { iconId: 'shield-off',   status: 'TRIGGERED',
+                    dotColor: 'var(--color-accent-triggered)', isAlert: true, isTriggered: true },
+    };
+    const m = map[alarm.state] ?? map['disarmed'];
+    return { id: 'security', label: 'Security', ...m };
+  }
+
+  // ── Door pills ──────────────────────────────────────────────────────────────
+  function doorState(id: string, fallback: BinarySensorState): 'on' | 'off' {
+    const s = entity(id)?.state;
+    return (s === 'on' || s === 'off') ? s : fallback.state;
+  }
+
+  function doorPill(id: string, label: string, state: 'on' | 'off'): PillDescriptor {
+    const isOpen = state === 'on';
+    return {
+      id, label,
+      iconId:   isOpen ? 'door-open'   : 'door-closed',
+      status:   isOpen ? 'Open'        : 'Closed',
+      dotColor: isOpen ? 'var(--color-accent-alert)' : 'var(--color-accent-safe)',
+      isAlert:  false,
+    };
+  }
+
+  // ── Lights pill ─────────────────────────────────────────────────────────────
+  let lightsOn = $derived(entity(EID.lights)?.state === 'on');
+
+  // ── Combined pills (global, visible on all sections) ───────────────────────
+  let pills = $derived<PillDescriptor[]>([
+    alarmPill(),
+    doorPill('main-door',   'Main Door',            doorState(EID.mainDoor,   binarySensorMainDoor)),
+    doorPill('side-door',   'Side Door',            doorState(EID.sideDoor,   binarySensorSideDoor)),
+    doorPill('back-perim',  'Back Perimeter',       doorState(EID.backPerim,  binarySensorBackPerimeter)),
+    doorPill('front-perim', 'Front-Side Perimeter', doorState(EID.frontPerim, binarySensorFrontSidePerimeter)),
+    {
+      id:       'outdoor-lights',
+      iconId:   'lightbulb',
+      label:    'Outdoor Lights',
+      status:   lightsOn ? 'On' : 'Off',
+      dotColor: lightsOn ? 'var(--color-accent-light)' : 'var(--color-accent-neutral)',
+      isAlert:  false,
+    },
+  ]);
 </script>
 
 <div class="layout">
+  <!-- Shared header: clock + greeting + bell + theme toggle -->
+  <header class="shell-header">
+    <TopStrip haConnected={haStore.connected} />
+  </header>
+
+  <!-- Global status pill row — visible on every section -->
+  <div class="shell-pills">
+    <StatusPillRow {pills} />
+  </div>
+
+  <!-- Per-section content with opacity crossfade on route change -->
   <main class="content">
-    {@render children()}
+    {#key $page.url.pathname}
+      <div
+        class="route-fade"
+        in:fade={{ duration: 200, easing: t => t < 0.5 ? 4*t*t*t : 1-(-2*t+2)**3/2 }}
+        out:fade={{ duration: 200, easing: t => t < 0.5 ? 4*t*t*t : 1-(-2*t+2)**3/2 }}
+      >
+        {@render children()}
+      </div>
+    {/key}
   </main>
+
   <BottomNav />
 </div>
 
 <style>
   .layout {
     display: grid;
-    grid-template-rows: 1fr auto;
+    grid-template-rows: auto auto 1fr auto;
     height: 100vh;
     width: 100%;
     overflow: hidden;
     background: var(--color-canvas);
   }
 
+  /* Shared header — matches the padding Home uses */
+  .shell-header {
+    padding: clamp(6px, 0.6vh, 10px) 5vw 0;
+  }
+
+  /* Pill row — same horizontal edges as tiles */
+  .shell-pills {
+    padding: clamp(3px, 0.4vh, 6px) 5vw 0;
+    overflow: visible;
+  }
+
+  /* Per-section content area */
   .content {
     overflow: hidden;
     min-height: 0;
+    position: relative;
+  }
+
+  /* Crossfade wrapper — fills the content area */
+  .route-fade {
+    position: absolute;
+    inset: 0;
   }
 </style>

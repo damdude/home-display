@@ -59,6 +59,10 @@
     opacity: 1;
   }
 
+  .tab.active .label {
+    font-weight: 600;
+  }
+
   .icon {
     display: flex;
     align-items: center;
