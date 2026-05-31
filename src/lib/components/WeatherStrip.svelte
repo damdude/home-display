@@ -1,9 +1,20 @@
 <script lang="ts">
   import { Cloud } from 'lucide-svelte';
   import WeatherIcon from './WeatherIcon.svelte';
-  import type { WeatherState } from '$lib/data/placeholder.js';
+  import type { WeatherState, WeatherForecastDay } from '$lib/data/placeholder.js';
 
-  let { weather }: { weather: WeatherState } = $props();
+  let {
+    weather,
+    forecast = [],
+  }: {
+    weather: WeatherState;
+    /**
+     * 7-day daily forecast from weather.get_forecasts service call.
+     * Provided separately because HA 2024.4+ removed forecast from entity attributes.
+     * Falls back to weather.attributes.forecast (placeholder / legacy) when empty.
+     */
+    forecast?: WeatherForecastDay[];
+  } = $props();
 
   const LABELS: Record<string, string> = {
     'sunny':           'Sunny',
@@ -31,7 +42,10 @@
     return new Date(datetime).toLocaleDateString('en-US', { weekday: 'short' });
   }
 
-  let forecast = $derived(weather.attributes.forecast.slice(0, 7));
+  // Use server-provided forecast if available; fall back to placeholder attribute
+  let activeForecast = $derived(
+    (forecast.length > 0 ? forecast : (weather.attributes.forecast ?? [])).slice(0, 7)
+  );
 </script>
 
 <div class="weather">
@@ -59,15 +73,15 @@
       <div class="right">
         <span class="temp num">{weather.attributes.temperature}{weather.attributes.temperature_unit}</span>
         <div class="hi-lo">
-          <span class="hi num">H: {weather.attributes.forecast[0]?.temperature ?? '–'}°</span>
-          <span class="lo num">L: {weather.attributes.forecast[0]?.templow ?? '–'}°</span>
+          <span class="hi num">H: {activeForecast[0]?.temperature ?? '–'}°</span>
+          <span class="lo num">L: {activeForecast[0]?.templow ?? '–'}°</span>
         </div>
       </div>
     </div>
 
     <!-- 7-day forecast strip -->
     <div class="forecast">
-      {#each forecast as day, i}
+      {#each activeForecast as day, i}
         <div class="day">
           <span class="day-label">{dayLabel(day.datetime, i)}</span>
           <span class="day-icon">

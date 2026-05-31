@@ -2,79 +2,74 @@
  * GET /api/ha
  *
  * Server-Sent Events proxy to Home Assistant.
- * The browser connects here with no credentials — HA_TOKEN never leaves
- * the server. Each SSE connection opens one HA WebSocket and streams
- * entity-count updates until the client disconnects.
  *
- * Event shape: { connected: boolean; entityCount: number; error?: string }
+ * The browser connects here — HA_TOKEN never leaves the server.
+ * All SSE clients share a single HA WebSocket connection (singleton in
+ * connection.ts). Each client receives:
+ *
+ *   {type: 'status',   connected: boolean}         — connection state changes
+ *   {type: 'snapshot', entities: HassEntities}     — full entity map on connect
+ *   {type: 'patch',    entityId, state: HassEntity} — individual entity changes
+ *   {type: 'forecast', data: WeatherForecastDay[]} — 7-day forecast (hourly refresh)
+ *
+ * A comment heartbeat (":heartbeat") is sent every 15 s to keep the connection
+ * alive through proxies and idle-connection timeouts.
  */
 import { env } from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
-import { subscribeEntities } from 'home-assistant-js-websocket';
-import { connectToHA } from '$lib/server/ha/client';
+import { subscribe } from '$lib/server/ha/connection.js';
+import { startForecastRefresh } from '$lib/server/ha/forecast.js';
 import type { RequestHandler } from './$types';
+
+// Start forecast refresh loop once at module load.
+// Idempotent — safe to call on every SSE connection.
+startForecastRefresh();
 
 export const GET: RequestHandler = () => {
   if (!env.HA_URL || !env.HA_TOKEN) {
     error(500, 'HA_URL and HA_TOKEN must be set in .env');
   }
 
-  // Capture here — env is read server-side, never forwarded to client
-  const haUrl = env.HA_URL;
-  const haToken = env.HA_TOKEN;
-
-  let cleanup: (() => void) | undefined;
+  let unsub: (() => void) | undefined;
+  let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
 
   const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const send = (payload: object) => {
-        const line = `data: ${JSON.stringify(payload)}\n\n`;
-        controller.enqueue(new TextEncoder().encode(line));
-      };
+    start(controller) {
+      const enc = new TextEncoder();
 
-      try {
-        const conn = await connectToHA(haUrl, haToken);
-
-        // Immediately signal connection so the UI can react
-        send({ connected: true, entityCount: 0 });
-
-        const unsub = await subscribeEntities(conn, (entities) => {
-          send({ connected: true, entityCount: Object.keys(entities).length });
-        });
-
-        conn.addEventListener('disconnected', () => {
-          send({ connected: false, entityCount: 0 });
-        });
-
-        conn.addEventListener('ready', () => {
-          send({ connected: true, entityCount: 0 });
-        });
-
-        cleanup = () => {
-          unsub();
-          conn.close();
-        };
-      } catch (e) {
-        send({
-          connected: false,
-          entityCount: 0,
-          error: e instanceof Error ? e.message : String(e),
-        });
-        controller.close();
+      function send(payload: object): void {
+        try {
+          controller.enqueue(enc.encode(`data: ${JSON.stringify(payload)}\n\n`));
+        } catch (_) {
+          // Client disconnected; cancel() will clean up
+        }
       }
+
+      function sendHeartbeat(): void {
+        try {
+          controller.enqueue(enc.encode(':heartbeat\n\n'));
+        } catch (_) {}
+      }
+
+      // Subscribe to the singleton — immediately delivers current state,
+      // then streams all subsequent events
+      unsub = subscribe(send);
+
+      // Heartbeat every 15 s to keep connection alive through proxies
+      heartbeatTimer = setInterval(sendHeartbeat, 15_000);
     },
 
     cancel() {
-      cleanup?.();
+      unsub?.();
+      clearInterval(heartbeatTimer);
     },
   });
 
   return new Response(stream, {
     headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-      // Prevent any intermediate proxy from buffering the stream
+      'Content-Type':    'text/event-stream',
+      'Cache-Control':   'no-cache',
+      'Connection':      'keep-alive',
       'X-Accel-Buffering': 'no',
     },
   });

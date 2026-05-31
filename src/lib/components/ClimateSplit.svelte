@@ -8,7 +8,18 @@
   import { Thermometer, Wind, Droplets, Flame, Snowflake, RefreshCw } from 'lucide-svelte';
   import type { ClimateState } from '$lib/data/placeholder.js';
 
-  let { climate }: { climate: ClimateState } = $props();
+  let {
+    climate,
+    humidity = null,
+    onAdjustSetpoint,
+    onSetMode,
+  }: {
+    climate: ClimateState;
+    /** Current humidity % from sensor.living_room_thermostat_current_humidity */
+    humidity?: number | null;
+    onAdjustSetpoint?: (delta: number) => void;
+    onSetMode?: (mode: 'heat' | 'cool' | 'heat_cool') => void;
+  } = $props();
 
   type ModeConfig = { label: string; color: string };
   const MODE: Record<string, ModeConfig> = {
@@ -72,7 +83,7 @@
 
       <div class="humidity">
         <span class="hum-icon"><Droplets size={16} strokeWidth={1.8} /></span>
-        <span class="num">48%</span>
+        <span class="num">{humidity != null ? `${Math.round(humidity)}%` : '–'}</span>
         <span class="hum-label">Humidity</span>
       </div>
     </div>
@@ -80,11 +91,11 @@
     <!-- ── Right tile: controls ── -->
     <div class="tile tile-controls">
       <div class="setpoint-ctrl">
-        <button class="adj-btn" aria-label="Increase setpoint">
+        <button class="adj-btn" aria-label="Increase setpoint" onclick={() => onAdjustSetpoint?.(1)}>
           <span class="adj-sign">+</span>
         </button>
         <span class="sp-value num">{setpoint}°</span>
-        <button class="adj-btn" aria-label="Decrease setpoint">
+        <button class="adj-btn" aria-label="Decrease setpoint" onclick={() => onAdjustSetpoint?.(-1)}>
           <span class="adj-sign">−</span>
         </button>
       </div>
@@ -95,6 +106,7 @@
           class:active={climate.state === 'heat'}
           aria-label="Heat mode"
           title="Heat"
+          onclick={() => onSetMode?.('heat')}
         >
           <Flame size={24} strokeWidth={1.5} />
         </button>
@@ -103,6 +115,7 @@
           class:active={climate.state === 'cool'}
           aria-label="Cool mode"
           title="Cool"
+          onclick={() => onSetMode?.('cool')}
         >
           <Snowflake size={24} strokeWidth={1.5} />
         </button>
@@ -111,6 +124,7 @@
           class:active={climate.state === 'heat_cool' || climate.state === 'auto'}
           aria-label="Auto mode"
           title="Auto"
+          onclick={() => onSetMode?.('heat_cool')}
         >
           <RefreshCw size={24} strokeWidth={1.5} />
         </button>

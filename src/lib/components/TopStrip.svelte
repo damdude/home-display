@@ -1,8 +1,19 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Sun, Moon } from 'lucide-svelte';
+  import { Sun, Moon, Bell } from 'lucide-svelte';
 
-  // ── Clock + greeting ────────────────────────────────────────────────────────
+  // ── Props ────────────────────────────────────────────────────────────────────
+  let {
+    haConnected = true,
+    hasNotification = false,
+  }: {
+    /** False while HA WebSocket is reconnecting; shows indicator on bell. */
+    haConnected?: boolean;
+    /** True to show an accent dot on the bell icon (Phase 7+). */
+    hasNotification?: boolean;
+  } = $props();
+
+  // ── Clock + greeting ──────────────────────────────────────────────────────────
   let timeStr  = $state('');
   let greeting = $state('');
   let interval: ReturnType<typeof setInterval>;
@@ -24,7 +35,7 @@
   });
   onDestroy(() => clearInterval(interval));
 
-  // ── Theme toggle ────────────────────────────────────────────────────────────
+  // ── Theme toggle ──────────────────────────────────────────────────────────────
   let theme = $state<'dark' | 'light'>('dark');
 
   onMount(() => {
@@ -46,18 +57,36 @@
     <p class="greeting">{greeting}</p>
   </div>
 
-  <!-- Right: theme toggle -->
-  <button
-    class="theme-btn"
-    onclick={toggleTheme}
-    aria-label="Toggle theme"
-  >
-    {#if theme === 'dark'}
-      <Moon size={20} strokeWidth={1.6} />
-    {:else}
-      <Sun size={20} strokeWidth={1.6} />
-    {/if}
-  </button>
+  <!-- Right: bell + theme toggle -->
+  <div class="actions">
+    <!-- Bell: inert this phase; dot when hasNotification; pulse when reconnecting -->
+    <div
+      class="bell-wrap"
+      class:reconnecting={!haConnected}
+      aria-label={!haConnected ? 'Reconnecting to Home Assistant…' : 'Notifications'}
+      title={!haConnected ? 'Reconnecting…' : undefined}
+    >
+      <Bell size={20} strokeWidth={1.6} />
+      {#if hasNotification || !haConnected}
+        <span
+          class="bell-dot"
+          class:reconnect-dot={!haConnected}
+        ></span>
+      {/if}
+    </div>
+
+    <button
+      class="theme-btn"
+      onclick={toggleTheme}
+      aria-label="Toggle theme"
+    >
+      {#if theme === 'dark'}
+        <Moon size={20} strokeWidth={1.6} />
+      {:else}
+        <Sun size={20} strokeWidth={1.6} />
+      {/if}
+    </button>
+  </div>
 </div>
 
 <style>
@@ -92,6 +121,58 @@
     color: var(--color-text-secondary);
     margin: 0;
     letter-spacing: 0.01em;
+  }
+
+  /* ── Right action cluster ── */
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── Bell ── */
+  .bell-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: var(--color-text-secondary);
+    opacity: 0.55;
+    /* Inert — no pointer interaction this phase */
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Reconnecting: pulse the bell to signal connectivity issue */
+  .bell-wrap.reconnecting {
+    opacity: 1;
+    animation: bellPulse 2s ease-in-out infinite;
+    color: var(--color-accent-alert);
+  }
+
+  @keyframes bellPulse {
+    0%, 100% { opacity: 0.5; }
+    50%       { opacity: 1.0; }
+  }
+
+  /* Dot indicator (notification or reconnecting) */
+  .bell-dot {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-accent-info);
+    border: 1.5px solid var(--color-canvas);
+  }
+
+  .bell-dot.reconnect-dot {
+    background: var(--color-accent-alert);
   }
 
   /* ── Theme toggle ── */

@@ -2,6 +2,17 @@
   import { Lightbulb, ShieldCheck, Tv2, Fan, Zap } from 'lucide-svelte';
   import QuickShortcut from './QuickShortcut.svelte';
   import { cv } from '$lib/design/tokens.js';
+
+  let {
+    outdoorLightsOn = false,
+    onToggleOutdoorLights,
+  }: {
+    outdoorLightsOn?: boolean;
+    onToggleOutdoorLights?: () => void;
+  } = $props();
+
+  // Outdoor lights button color shifts when on
+  let lightsColor = $derived(outdoorLightsOn ? cv.accent.light : cv.accent.neutral);
 </script>
 
 <div class="quick-actions">
@@ -12,7 +23,11 @@
   </div>
 
   <div class="row">
-    <QuickShortcut label="Outdoor Lights" color={cv.accent.light}>
+    <QuickShortcut
+      label="Outdoor Lights"
+      color={lightsColor}
+      onclick={onToggleOutdoorLights}
+    >
       <Lightbulb size={44} strokeWidth={1.4} />
     </QuickShortcut>
 
