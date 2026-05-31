@@ -339,8 +339,8 @@
 
   /* − and + buttons */
   .adj-btn {
-    width:  clamp(64px, 7vw, 96px);
-    height: clamp(64px, 7vw, 96px);
+    width:  clamp(74px, 8.2vw, 112px);
+    height: clamp(74px, 8.2vw, 112px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -364,7 +364,7 @@
 
   .adj-sign {
     /* ~50% of button diameter */
-    font-size: clamp(28px, 3vw, 42px);
+    font-size: clamp(32px, 3.5vw, 50px);
     font-weight: 300;
     line-height: 1;
     color: var(--color-text-primary);
@@ -407,8 +407,8 @@
   }
 
   .mode-btn {
-    width:  clamp(52px, 5.5vw, 80px);
-    height: clamp(52px, 5.5vw, 80px);
+    width:  clamp(60px, 6.4vw, 92px);
+    height: clamp(60px, 6.4vw, 92px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -443,8 +443,8 @@
 
   /* Scale icons inside mode buttons via CSS — overrides the size prop */
   .mode-btn :global(svg) {
-    width:  clamp(22px, 2.4vw, 34px);
-    height: clamp(22px, 2.4vw, 34px);
+    width:  clamp(26px, 2.8vw, 40px);
+    height: clamp(26px, 2.8vw, 40px);
   }
 
   .mode-lbl {
