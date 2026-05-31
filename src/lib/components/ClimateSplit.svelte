@@ -328,10 +328,19 @@
     width: 100%;
   }
 
+  /*
+   * Controls tile is 65% of content width (90vw after 5vw padding each side)
+   * = ~58.5vw. We size buttons as % of that tile width using vw as the proxy:
+   *
+   *   +/− buttons:   ~12% of tile → 7vw   → clamp(64px, 7vw, 96px)
+   *   Setpoint value: dominant     → 8.5vw → clamp(80px, 8.5vw, 120px)
+   *   Mode buttons:  ~9% of tile  → 5.5vw → clamp(52px, 5.5vw, 80px)
+   */
+
   /* − and + buttons */
   .adj-btn {
-    width: clamp(60px, 5.00vw, 72px);
-    height: clamp(60px, 5.00vw, 72px);
+    width:  clamp(64px, 7vw, 96px);
+    height: clamp(64px, 7vw, 96px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -354,16 +363,17 @@
   .adj-btn:disabled { cursor: default; pointer-events: none; }
 
   .adj-sign {
-    font-size: clamp(22px, 2.22vw, 32px);
+    /* ~50% of button diameter */
+    font-size: clamp(28px, 3vw, 42px);
     font-weight: 300;
     line-height: 1;
     color: var(--color-text-primary);
     user-select: none;
   }
 
-  /* Setpoint value: large centered number */
+  /* Setpoint value: dominant number between the two buttons */
   .sp-value {
-    font-size: clamp(60px, 6.11vw, 88px);
+    font-size: clamp(80px, 8.5vw, 120px);
     font-weight: 200;
     letter-spacing: -0.03em;
     color: var(--color-text-primary);
@@ -373,9 +383,9 @@
     min-width: 0;
   }
 
-  /* Auto range mode: smaller so "68–75" fits */
+  /* Auto range mode: smaller so "68–75" fits comfortably */
   .sp-value.range {
-    font-size: clamp(36px, 3.33vw, 52px);
+    font-size: clamp(48px, 5vw, 72px);
     font-weight: 300;
     letter-spacing: -0.02em;
   }
@@ -385,7 +395,7 @@
   /* Mode buttons row */
   .mode-btns {
     display: flex;
-    gap: clamp(8px, 1.11vw, 16px);
+    gap: clamp(10px, 1.5vw, 24px);
     justify-content: center;
   }
 
@@ -393,12 +403,12 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
 
   .mode-btn {
-    width: clamp(48px, 4.17vw, 60px);
-    height: clamp(48px, 4.17vw, 60px);
+    width:  clamp(52px, 5.5vw, 80px);
+    height: clamp(52px, 5.5vw, 80px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -431,8 +441,14 @@
 
   .mode-btn:active { transform: scale(0.9); opacity: 1; }
 
+  /* Scale icons inside mode buttons via CSS — overrides the size prop */
+  .mode-btn :global(svg) {
+    width:  clamp(22px, 2.4vw, 34px);
+    height: clamp(22px, 2.4vw, 34px);
+  }
+
   .mode-lbl {
-    font-size: clamp(11px, 0.97vw, 13px);
+    font-size: clamp(13px, 1.25vw, 18px);
     font-weight: 500;
     color: var(--color-text-tertiary);
     letter-spacing: 0.03em;
