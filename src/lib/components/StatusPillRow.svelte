@@ -31,19 +31,19 @@
       <!-- 2. Icon -->
       <span class="pill-icon">
         {#if pill.iconId === 'shield-check'}
-          <ShieldCheck size={15} strokeWidth={2} />
+          <ShieldCheck size={18} strokeWidth={2} />
         {:else if pill.iconId === 'shield-alert'}
-          <ShieldAlert size={15} strokeWidth={2} />
+          <ShieldAlert size={18} strokeWidth={2} />
         {:else if pill.iconId === 'shield'}
-          <Shield size={15} strokeWidth={2} />
+          <Shield size={18} strokeWidth={2} />
         {:else if pill.iconId === 'shield-off'}
-          <ShieldOff size={15} strokeWidth={2} />
+          <ShieldOff size={18} strokeWidth={2} />
         {:else if pill.iconId === 'door-open'}
-          <DoorOpen size={15} strokeWidth={2} />
+          <DoorOpen size={18} strokeWidth={2} />
         {:else if pill.iconId === 'door-closed'}
-          <DoorClosed size={15} strokeWidth={2} />
+          <DoorClosed size={18} strokeWidth={2} />
         {:else}
-          <Lightbulb size={15} strokeWidth={2} />
+          <Lightbulb size={18} strokeWidth={2} />
         {/if}
       </span>
 
@@ -62,15 +62,15 @@
   .pill-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px;
   }
 
   /* ── Pill shell ── */
   .pill {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 5px 10px 5px 8px;
+    gap: 8px;
+    padding: 7px 13px 7px 10px;
     border-radius: 999px;
     background: var(--color-surface-1);
     /* Border always tinted by the pill's own status color */
@@ -97,8 +97,8 @@
 
   /* ── Dot ── */
   .pill-dot {
-    width: 7px;
-    height: 7px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
     flex-shrink: 0;
     background: var(--pill-color);
@@ -116,7 +116,7 @@
 
   /* ── Label ── */
   .pill-label {
-    font-size: clamp(13px, 1.04vw, 15px);
+    font-size: clamp(15px, 1.25vw, 18px);
     font-weight: 500;
     color: var(--color-text-primary);
     letter-spacing: 0.01em;
@@ -124,7 +124,7 @@
 
   /* ── Status — colored to match dot and border ── */
   .pill-status {
-    font-size: clamp(12px, 0.97vw, 14px);
+    font-size: clamp(14px, 1.18vw, 17px);
     font-weight: 500;
     color: var(--pill-color);
     letter-spacing: 0.01em;
