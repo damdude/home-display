@@ -47,6 +47,18 @@
   // ── Helper: read entity state with fallback ─────────────────────────────────
   function entity(id: string) { return haStore.entities[id]; }
 
+  // ── Location name ────────────────────────────────────────────────────────────
+  // Priority: HA config location_name → weather entity location attr → friendly_name
+  let locationName = $derived(() => {
+    if (haStore.locationName) return haStore.locationName;
+    const w = entity(EID.weather);
+    if (w?.attributes?.location) return String(w.attributes.location);
+    // Friendly name fallback: strip "Forecast" word, trim
+    const fn: string = w?.attributes?.friendly_name ?? '';
+    if (fn) return fn.replace(/forecast/i, '').trim().replace(/^,|,$/g, '').trim();
+    return '';
+  });
+
   // ── Weather ─────────────────────────────────────────────────────────────────
   let weatherEntity = $derived(entity(EID.weather));
   let weather = $derived({
@@ -80,6 +92,11 @@
           ? parseFloat(tempSensorEntity.state)
           : (climateEntity?.attributes?.current_temperature
               ?? climateLivingRoomThermostat.attributes.current_temperature),
+      // Single-value setpoint (heat / cool modes)
+      temperature:
+        climateEntity?.attributes?.temperature != null
+          ? parseFloat(String(climateEntity.attributes.temperature))
+          : undefined,
       target_temp_low:
         climateEntity?.attributes?.target_temp_low
           ?? climateLivingRoomThermostat.attributes.target_temp_low,
@@ -98,18 +115,37 @@
       : null
   );
 
-  // Climate controls → service calls
+  // Climate controls → service calls (mode-aware)
   function adjustSetpoint(delta: number) {
-    const low  = climate.attributes.target_temp_low  + delta;
-    const high = climate.attributes.target_temp_high + delta;
-    callHaService('climate', 'set_temperature', {
-      entity_id:       EID.climate,
-      target_temp_low:  low,
-      target_temp_high: high,
-    });
+    const state = climate.state;
+    if (state === 'off') return; // disabled
+
+    if (state === 'heat' || state === 'cool') {
+      // Single setpoint mode: adjust the 'temperature' attribute
+      const current = climate.attributes.temperature ?? climate.attributes.target_temp_high;
+      callHaService('climate', 'set_temperature', {
+        entity_id:   EID.climate,
+        temperature: current + delta,
+      });
+    } else {
+      // Auto mode: + adjusts high, − adjusts low (v1 UX)
+      if (delta > 0) {
+        callHaService('climate', 'set_temperature', {
+          entity_id:        EID.climate,
+          target_temp_low:  climate.attributes.target_temp_low,
+          target_temp_high: climate.attributes.target_temp_high + delta,
+        });
+      } else {
+        callHaService('climate', 'set_temperature', {
+          entity_id:        EID.climate,
+          target_temp_low:  climate.attributes.target_temp_low  + delta,
+          target_temp_high: climate.attributes.target_temp_high,
+        });
+      }
+    }
   }
 
-  function setClimateMode(mode: 'heat' | 'cool' | 'heat_cool') {
+  function setClimateMode(mode: 'heat' | 'cool' | 'heat_cool' | 'off') {
     callHaService('climate', 'set_hvac_mode', {
       entity_id: EID.climate,
       hvac_mode: mode,
@@ -216,7 +252,7 @@
 
   <!-- Zone 3: Weather -->
   <section class="zone zone-weather">
-    <WeatherStrip {weather} forecast={activeForecast} />
+    <WeatherStrip {weather} forecast={activeForecast} locationName={locationName()} />
   </section>
 
   <!-- Zone 4: Calendar -->
@@ -264,8 +300,10 @@
     overflow: hidden;
   }
 
-  /* Pills zone must not clip wrapped rows */
+  /* Pills zone: wider than the rest — extends 2vw beyond the page padding on
+     each side. Overflow visible so wrapped rows aren't clipped. */
   .zone-pills {
     overflow: visible;
+    margin-inline: -2vw;
   }
 </style>

@@ -25,6 +25,7 @@ export type HaEvent =
   | { type: 'snapshot'; entities: HassEntities }
   | { type: 'patch'; entityId: string; state: HassEntity }
   | { type: 'forecast'; data: WeatherForecastDay[] }
+  | { type: 'config'; locationName: string }
   | { type: 'status'; connected: boolean };
 
 // ── Singleton state ───────────────────────────────────────────────────────────
@@ -34,6 +35,7 @@ let isConnected = false;
 let initCalled = false;
 let currentEntities: HassEntities = {};
 let cachedForecast: WeatherForecastDay[] = [];
+let cachedLocationName = '';
 
 const subscribers = new Set<(event: HaEvent) => void>();
 
@@ -58,6 +60,9 @@ export function subscribe(cb: (event: HaEvent) => void): () => void {
     cb({ type: 'snapshot', entities: currentEntities });
     if (cachedForecast.length > 0) {
       cb({ type: 'forecast', data: cachedForecast });
+    }
+    if (cachedLocationName) {
+      cb({ type: 'config', locationName: cachedLocationName });
     }
   } else {
     cb({ type: 'status', connected: isConnected });
@@ -132,6 +137,11 @@ async function connect(): Promise<void> {
       }
     });
 
+    // ── Location name (fetched once on first connect) ────────────────────────
+    if (!cachedLocationName) {
+      void fetchLocationName(conn);
+    }
+
     // ── Disconnect handler ───────────────────────────────────────────────────
     conn.addEventListener('disconnected', () => {
       console.warn('[HA] WebSocket disconnected');
@@ -147,6 +157,24 @@ async function connect(): Promise<void> {
     isConnected = false;
     broadcast({ type: 'status', connected: false });
     scheduleReconnect();
+  }
+}
+
+async function fetchLocationName(c: Connection): Promise<void> {
+  try {
+    const config = await c.sendMessagePromise({ type: 'get_config' }) as {
+      location_name?: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    const name = (config?.location_name ?? '').trim();
+    if (name) {
+      cachedLocationName = name;
+      broadcast({ type: 'config', locationName: name });
+      console.log('[HA] Location name:', name);
+    }
+  } catch (e) {
+    console.warn('[HA] Could not fetch location name:', e);
   }
 }
 

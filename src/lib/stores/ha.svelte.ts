@@ -27,6 +27,8 @@ export const haStore = $state({
   entities: {} as HassEntities,
   /** 7-day daily forecast. Empty until first forecast message from server. */
   forecast: [] as WeatherForecastDay[],
+  /** HA instance location_name from /api/config (e.g. "Folsom"). Empty until received. */
+  locationName: '',
 });
 
 // ── Service call ──────────────────────────────────────────────────────────────
@@ -69,11 +71,12 @@ export function startHaStream(): () => void {
   es.onmessage = (e: MessageEvent<string>) => {
     try {
       const msg = JSON.parse(e.data) as {
-        type: 'snapshot' | 'patch' | 'forecast' | 'status';
+        type: 'snapshot' | 'patch' | 'forecast' | 'config' | 'status';
         entities?: HassEntities;
         entityId?: string;
         state?: HassEntities[string];
         data?: WeatherForecastDay[];
+        locationName?: string;
         connected?: boolean;
       };
 
@@ -93,6 +96,10 @@ export function startHaStream(): () => void {
 
         case 'forecast':
           if (msg.data) haStore.forecast = msg.data;
+          break;
+
+        case 'config':
+          if (msg.locationName) haStore.locationName = msg.locationName;
           break;
 
         case 'status':

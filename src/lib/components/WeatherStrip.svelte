@@ -6,6 +6,7 @@
   let {
     weather,
     forecast = [],
+    locationName = '',
   }: {
     weather: WeatherState;
     /**
@@ -14,6 +15,12 @@
      * Falls back to weather.attributes.forecast (placeholder / legacy) when empty.
      */
     forecast?: WeatherForecastDay[];
+    /**
+     * Location name from HA config (e.g. "Folsom"). Shown below "Forecast" label.
+     * Falls back to weather entity's friendly_name minus the word "Forecast".
+     * Empty string → nothing rendered.
+     */
+    locationName?: string;
   } = $props();
 
   const LABELS: Record<string, string> = {
@@ -67,6 +74,9 @@
         <div class="cond-text">
           <span class="cond-label">{condLabel(weather.state)}</span>
           <span class="cond-sub">Forecast</span>
+          {#if locationName}
+            <span class="cond-location">{locationName}</span>
+          {/if}
         </div>
       </div>
 
@@ -164,7 +174,8 @@
     line-height: 1;
   }
 
-  .cond-sub {
+  .cond-sub,
+  .cond-location {
     font-size: var(--type-label);
     font-weight: 500;
     color: var(--color-text-tertiary);

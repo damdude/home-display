@@ -1,11 +1,21 @@
 <!--
-  ClimateSplit — two-tile climate zone (60/40 split).
-  Left: current temp + mode + setpoint + humidity display.
-  Right: setpoint +/- controls + heat/cool/auto mode buttons.
-  Controls are visual-only this phase (Phase 1b wires to HA).
+  ClimateSplit — two-tile climate zone (35/65 split).
+
+  Left tile (narrower): current temp · mode pill · setpoint range · humidity.
+  Right tile (wider):
+    Top row:   [−]  [setpoint value]  [+]   (horizontal; disabled when off)
+    Bottom row: [Heat] [Cool] [Auto] [Off]  (mode buttons with labels)
+
+  Temperature attributes by mode:
+    heat / cool  → entity.attributes.temperature  (single value)
+    heat_cool / auto → entity.attributes.target_temp_low / target_temp_high
+    off          → no setpoint; +/− disabled
 -->
 <script lang="ts">
-  import { Thermometer, Wind, Droplets, Flame, Snowflake, RefreshCw } from 'lucide-svelte';
+  import {
+    Thermometer, Wind, Droplets,
+    Flame, Snowflake, RefreshCw, Power,
+  } from 'lucide-svelte';
   import type { ClimateState } from '$lib/data/placeholder.js';
 
   let {
@@ -18,8 +28,10 @@
     /** Current humidity % from sensor.living_room_thermostat_current_humidity */
     humidity?: number | null;
     onAdjustSetpoint?: (delta: number) => void;
-    onSetMode?: (mode: 'heat' | 'cool' | 'heat_cool') => void;
+    onSetMode?: (mode: 'heat' | 'cool' | 'heat_cool' | 'off') => void;
   } = $props();
+
+  // ── Display helpers ────────────────────────────────────────────────────────
 
   type ModeConfig = { label: string; color: string };
   const MODE: Record<string, ModeConfig> = {
@@ -31,17 +43,27 @@
   };
 
   let mode      = $derived(MODE[climate.state] ?? MODE['off']);
-  let isActive  = $derived(
-    climate.attributes.hvac_action !== 'idle' && climate.state !== 'off'
-  );
+  let isOff     = $derived(climate.state === 'off');
+  let isAuto    = $derived(climate.state === 'heat_cool' || climate.state === 'auto');
+  let isActive  = $derived(!isOff && climate.attributes.hvac_action !== 'idle');
   let isHeating = $derived(climate.attributes.hvac_action === 'heating');
   let iconColor = $derived(isActive ? mode.color : 'var(--color-text-tertiary)');
 
-  let setpoint  = $derived(
-    climate.state === 'heat'
-      ? climate.attributes.target_temp_low
-      : climate.attributes.target_temp_high
-  );
+  // Setpoint display — depends on mode
+  let setpointDisplay = $derived(() => {
+    if (isOff) return '--';
+    if (isAuto) {
+      const lo = climate.attributes.target_temp_low;
+      const hi = climate.attributes.target_temp_high;
+      return `${lo}–${hi}`;
+    }
+    // heat or cool: single temperature attribute
+    const t = climate.attributes.temperature ?? climate.attributes.target_temp_high;
+    return `${t}`;
+  });
+
+  // Whether setpoint is a range (auto) — controls font sizing
+  let isRangeMode = $derived(isAuto && !isOff);
 </script>
 
 <div class="climate">
@@ -52,15 +74,15 @@
   </div>
 
   <div class="tiles">
-    <!-- ── Left tile: display ── -->
+    <!-- ── Left tile: display (35%) ── -->
     <div class="tile tile-display">
       <div class="temp-row">
         <span class="current-temp num">{climate.attributes.current_temperature}°</span>
         <span class="mode-icon" style:color={iconColor} style:opacity={isActive ? '0.9' : '0.4'}>
           {#if isHeating}
-            <Thermometer size={36} strokeWidth={1.2} />
+            <Thermometer size={30} strokeWidth={1.2} />
           {:else}
-            <Wind size={36} strokeWidth={1.2} />
+            <Wind size={30} strokeWidth={1.2} />
           {/if}
         </span>
       </div>
@@ -75,60 +97,104 @@
       </div>
 
       <div class="setpoint-range">
-        <span class="set-label">Set to</span>
+        <span class="set-label">Set</span>
         <span class="set-value num">
-          {climate.attributes.target_temp_low}° – {climate.attributes.target_temp_high}°
+          {climate.attributes.target_temp_low}°–{climate.attributes.target_temp_high}°
         </span>
       </div>
 
       <div class="humidity">
-        <span class="hum-icon"><Droplets size={16} strokeWidth={1.8} /></span>
+        <span class="hum-icon"><Droplets size={14} strokeWidth={1.8} /></span>
         <span class="num">{humidity != null ? `${Math.round(humidity)}%` : '–'}</span>
-        <span class="hum-label">Humidity</span>
+        <span class="hum-label">RH</span>
       </div>
     </div>
 
-    <!-- ── Right tile: controls ── -->
+    <!-- ── Right tile: controls (65%) ── -->
     <div class="tile tile-controls">
-      <div class="setpoint-ctrl">
-        <button class="adj-btn" aria-label="Increase setpoint" onclick={() => onAdjustSetpoint?.(1)}>
-          <span class="adj-sign">+</span>
-        </button>
-        <span class="sp-value num">{setpoint}°</span>
-        <button class="adj-btn" aria-label="Decrease setpoint" onclick={() => onAdjustSetpoint?.(-1)}>
+
+      <!-- Top row: [−] [setpoint] [+] -->
+      <div class="setpoint-row">
+        <button
+          class="adj-btn"
+          aria-label="Decrease setpoint"
+          disabled={isOff}
+          style:opacity={isOff ? '0.3' : '1'}
+          onclick={() => onAdjustSetpoint?.(-1)}
+        >
           <span class="adj-sign">−</span>
+        </button>
+
+        <span
+          class="sp-value num"
+          class:range={isRangeMode}
+          class:dimmed={isOff}
+        >
+          {setpointDisplay()}
+        </span>
+
+        <button
+          class="adj-btn"
+          aria-label="Increase setpoint"
+          disabled={isOff}
+          style:opacity={isOff ? '0.3' : '1'}
+          onclick={() => onAdjustSetpoint?.(1)}
+        >
+          <span class="adj-sign">+</span>
         </button>
       </div>
 
+      <!-- Bottom row: Heat | Cool | Auto | Off -->
       <div class="mode-btns">
-        <button
-          class="mode-btn"
-          class:active={climate.state === 'heat'}
-          aria-label="Heat mode"
-          title="Heat"
-          onclick={() => onSetMode?.('heat')}
-        >
-          <Flame size={24} strokeWidth={1.5} />
-        </button>
-        <button
-          class="mode-btn"
-          class:active={climate.state === 'cool'}
-          aria-label="Cool mode"
-          title="Cool"
-          onclick={() => onSetMode?.('cool')}
-        >
-          <Snowflake size={24} strokeWidth={1.5} />
-        </button>
-        <button
-          class="mode-btn"
-          class:active={climate.state === 'heat_cool' || climate.state === 'auto'}
-          aria-label="Auto mode"
-          title="Auto"
-          onclick={() => onSetMode?.('heat_cool')}
-        >
-          <RefreshCw size={24} strokeWidth={1.5} />
-        </button>
+        <div class="mode-item">
+          <button
+            class="mode-btn"
+            class:active={climate.state === 'heat'}
+            aria-label="Heat mode"
+            onclick={() => onSetMode?.('heat')}
+          >
+            <Flame size={22} strokeWidth={1.5} />
+          </button>
+          <span class="mode-lbl">Heat</span>
+        </div>
+
+        <div class="mode-item">
+          <button
+            class="mode-btn"
+            class:active={climate.state === 'cool'}
+            aria-label="Cool mode"
+            onclick={() => onSetMode?.('cool')}
+          >
+            <Snowflake size={22} strokeWidth={1.5} />
+          </button>
+          <span class="mode-lbl">Cool</span>
+        </div>
+
+        <div class="mode-item">
+          <button
+            class="mode-btn"
+            class:active={climate.state === 'heat_cool' || climate.state === 'auto'}
+            aria-label="Auto mode"
+            onclick={() => onSetMode?.('heat_cool')}
+          >
+            <RefreshCw size={22} strokeWidth={1.5} />
+          </button>
+          <span class="mode-lbl">Auto</span>
+        </div>
+
+        <div class="mode-item">
+          <button
+            class="mode-btn off-btn"
+            class:active={climate.state === 'off'}
+            aria-label="Turn off"
+            onclick={() => onSetMode?.('off')}
+          >
+            <Power size={22} strokeWidth={1.5} />
+          </button>
+          <span class="mode-lbl">Off</span>
+        </div>
       </div>
+
     </div>
   </div>
 </div>
@@ -157,7 +223,7 @@
     flex: 1;
     min-height: 0;
     display: grid;
-    grid-template-columns: 60fr 40fr;
+    grid-template-columns: 35fr 65fr;
     gap: 8px;
   }
 
@@ -174,20 +240,20 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.5rem;
-    padding: 0.9rem 1.5rem;
+    gap: 0.4rem;
+    padding: 0.8rem 1rem;
   }
 
   .temp-row {
     display: flex;
     align-items: center;
-    gap: 0.3em;
+    gap: 0.2em;
     line-height: 1;
   }
 
-  /* Current temp: 72-84px — fills the left tile */
+  /* Current temp: slightly smaller in narrower tile */
   .current-temp {
-    font-size: clamp(56px, 5.83vw, 84px);
+    font-size: clamp(48px, 5.00vw, 72px);
     font-weight: 200;
     letter-spacing: -0.03em;
     color: var(--color-text-primary);
@@ -203,10 +269,10 @@
   .mode-pill {
     display: inline-flex;
     align-self: flex-start;
-    padding: 4px 12px;
+    padding: 3px 10px;
     border-radius: 999px;
     border: 1px solid;
-    font-size: clamp(14px, 1.67vw, 22px);
+    font-size: clamp(12px, 1.39vw, 18px);
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -215,17 +281,17 @@
   .setpoint-range {
     display: flex;
     align-items: baseline;
-    gap: 0.4em;
+    gap: 0.3em;
   }
 
   .set-label {
-    font-size: clamp(14px, 1.48vw, 22px);
+    font-size: clamp(12px, 1.25vw, 17px);
     color: var(--color-text-tertiary);
     font-weight: 500;
   }
 
   .set-value {
-    font-size: clamp(16px, 1.85vw, 26px);
+    font-size: clamp(13px, 1.39vw, 19px);
     font-weight: 300;
     color: var(--color-text-primary);
     letter-spacing: -0.01em;
@@ -234,9 +300,9 @@
   .humidity {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     color: var(--color-text-secondary);
-    font-size: clamp(14px, 1.48vw, 22px);
+    font-size: clamp(12px, 1.25vw, 17px);
     opacity: 0.7;
   }
 
@@ -249,21 +315,23 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    padding: 0.7rem 1rem;
+    gap: 0.6rem;
+    padding: 0.7rem 1.2rem;
   }
 
-  .setpoint-ctrl {
+  /* +/- row: horizontal */
+  .setpoint-row {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 0.1rem;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
   }
 
-  /* +/- buttons: 64-72px — big enough to tap confidently */
+  /* − and + buttons */
   .adj-btn {
-    width: clamp(56px, 5.00vw, 72px);
-    height: clamp(56px, 5.00vw, 72px);
+    width: clamp(60px, 5.00vw, 72px);
+    height: clamp(60px, 5.00vw, 72px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -272,43 +340,65 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     transition: background 200ms cubic-bezier(0.32, 0.72, 0, 1),
                 transform  150ms cubic-bezier(0.32, 0.72, 0, 1);
     -webkit-tap-highlight-color: transparent;
   }
 
-  .adj-btn:active {
+  .adj-btn:active:not(:disabled) {
     background: var(--color-surface-3);
     transform: scale(0.93);
   }
 
+  .adj-btn:disabled { cursor: default; pointer-events: none; }
+
   .adj-sign {
-    font-size: clamp(20px, 1.85vw, 26px);
+    font-size: clamp(22px, 2.22vw, 32px);
     font-weight: 300;
     line-height: 1;
     color: var(--color-text-primary);
     user-select: none;
   }
 
-  /* Setpoint value: 72-84px */
+  /* Setpoint value: large centered number */
   .sp-value {
-    font-size: clamp(56px, 5.83vw, 84px);
+    font-size: clamp(60px, 6.11vw, 88px);
     font-weight: 200;
     letter-spacing: -0.03em;
     color: var(--color-text-primary);
     line-height: 1;
-    padding: 0.08em 0;
+    flex: 1;
+    text-align: center;
+    min-width: 0;
   }
 
-  /* Heat/Cool/Auto: 52-60px diameter */
+  /* Auto range mode: smaller so "68–75" fits */
+  .sp-value.range {
+    font-size: clamp(36px, 3.33vw, 52px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+
+  .sp-value.dimmed { opacity: 0.35; }
+
+  /* Mode buttons row */
   .mode-btns {
     display: flex;
-    gap: 10px;
+    gap: clamp(8px, 1.11vw, 16px);
+    justify-content: center;
+  }
+
+  .mode-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
   }
 
   .mode-btn {
-    width: clamp(46px, 4.17vw, 60px);
-    height: clamp(46px, 4.17vw, 60px);
+    width: clamp(48px, 4.17vw, 60px);
+    height: clamp(48px, 4.17vw, 60px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -317,8 +407,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0.6;
     transition: background 200ms cubic-bezier(0.32, 0.72, 0, 1),
                 color     200ms cubic-bezier(0.32, 0.72, 0, 1),
+                opacity   200ms cubic-bezier(0.32, 0.72, 0, 1),
                 transform 150ms cubic-bezier(0.32, 0.72, 0, 1);
     -webkit-tap-highlight-color: transparent;
   }
@@ -327,7 +419,23 @@
     background: color-mix(in srgb, var(--color-accent-climate) 18%, var(--color-surface-2));
     border-color: color-mix(in srgb, var(--color-accent-climate) 35%, transparent);
     color: var(--color-accent-climate);
+    opacity: 1;
   }
 
-  .mode-btn:active { transform: scale(0.9); }
+  /* Off button active uses neutral, not climate accent */
+  .mode-btn.off-btn.active {
+    background: color-mix(in srgb, var(--color-accent-neutral) 18%, var(--color-surface-2));
+    border-color: color-mix(in srgb, var(--color-accent-neutral) 35%, transparent);
+    color: var(--color-accent-neutral);
+  }
+
+  .mode-btn:active { transform: scale(0.9); opacity: 1; }
+
+  .mode-lbl {
+    font-size: clamp(11px, 0.97vw, 13px);
+    font-weight: 500;
+    color: var(--color-text-tertiary);
+    letter-spacing: 0.03em;
+    user-select: none;
+  }
 </style>

@@ -55,7 +55,11 @@ export interface ClimateState {
   state: 'heat' | 'cool' | 'heat_cool' | 'auto' | 'off';
   attributes: {
     current_temperature: number;
+    /** Single setpoint — present in heat and cool modes */
+    temperature?: number;
+    /** Lower bound — present in heat_cool / auto modes */
     target_temp_low: number;
+    /** Upper bound — present in heat_cool / auto modes */
     target_temp_high: number;
     hvac_action: string;
   };
