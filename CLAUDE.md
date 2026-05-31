@@ -82,6 +82,7 @@ screensaver. Develop with code on Mac, runtime on Pi, view from Mac browser.\
 - The dev server binds to 0.0.0.0:5173 so it's accessible from the Mac\
 - View dashboard from Mac browser at: http://192.168.7.21:5173\
 - Visual validation on Pi's monitor: switch to production mode via systemd\
+- Mac does NOT run npm install, npm run build, or npm run dev. These run on the Pi. Mac is editor + git + rsync only.\
 \
 ## Runtime modes\
 - Pi runs in one of two modes, controlled by /home/dash/home-display/mode file\
@@ -141,7 +142,7 @@ screensaver. Develop with code on Mac, runtime on Pi, view from Mac browser.\
   function, or through a +server.ts endpoint; never via direct import\
   from src/lib/server/.\
 - Design tokens in src/lib/design/tokens.ts, never inline values\
-- Each session ends with `npm run build` passing on the Pi (not just the Mac)\
+- All npm/Node execution happens on the Pi, never on the Mac. The Mac handles editing, git, and rsync only. To validate a change, deploy and check journalctl on the Pi.\
 - Each session ends with the sync command run and the Pi displaying the\
   current code, so we always know what's actually deployed\
 - Commit to git (locally) after every successful session\
