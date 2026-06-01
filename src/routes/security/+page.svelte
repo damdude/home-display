@@ -92,7 +92,7 @@
       .map(d => d.label)
   );
 
-  let readyMessage = $derived<string>(() => {
+  let readyMessage = $derived.by<string>(() => {
     // If we haven't received the ready sensor yet, no message
     if (diagReady === undefined) return '';
     if (isReady) return 'System is ready for arming';

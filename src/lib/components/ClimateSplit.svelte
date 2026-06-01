@@ -50,7 +50,7 @@
   let iconColor = $derived(isActive ? mode.color : 'var(--color-text-tertiary)');
 
   // Setpoint display — depends on mode
-  let setpointDisplay = $derived(() => {
+  let setpointDisplay = $derived.by(() => {
     if (isOff) return '--';
     if (isAuto) {
       const lo = climate.attributes.target_temp_low;
@@ -130,7 +130,7 @@
           class:range={isRangeMode}
           class:dimmed={isOff}
         >
-          {setpointDisplay()}
+          {setpointDisplay}
         </span>
 
         <button

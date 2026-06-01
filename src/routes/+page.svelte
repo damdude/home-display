@@ -30,7 +30,7 @@
   function entity(id: string) { return haStore.entities[id]; }
 
   // ── Location name ────────────────────────────────────────────────────────────
-  let locationName = $derived(() => {
+  let locationName = $derived.by(() => {
     if (haStore.locationName) return haStore.locationName;
     const w = entity(EID.weather);
     if (w?.attributes?.location) return String(w.attributes.location);
@@ -142,7 +142,7 @@
 <!-- Home section: weather / calendar / climate / shortcuts / media -->
 <div class="home">
   <section class="zone zone-weather">
-    <WeatherStrip {weather} forecast={activeForecast} locationName={locationName()} />
+    <WeatherStrip {weather} forecast={activeForecast} locationName={locationName} />
   </section>
 
   <section class="zone zone-calendar">
