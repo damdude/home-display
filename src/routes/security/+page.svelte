@@ -713,20 +713,20 @@
   .diag-pill {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 8px;
+    gap: 6px;
+    padding: 5px 11px;
     border-radius: 999px;
     background: var(--color-surface-2);
     border: 1px solid var(--color-border);
-    font-size: clamp(10px, 0.9vw, 13px);
+    font-size: clamp(12px, 1.11vw, 16px);
     font-weight: 500;
     color: var(--color-text-secondary);
     white-space: nowrap;
   }
 
   .diag-dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
     background: var(--color-text-tertiary);
