@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { Lightbulb, ShieldCheck, Tv2, Fan, Zap } from 'lucide-svelte';
+  import { Lightbulb, ShieldCheck, ShieldOff, Tv2, Zap } from 'lucide-svelte';
   import QuickShortcut from './QuickShortcut.svelte';
   import { cv } from '$lib/design/tokens.js';
+  import { callHaService } from '$lib/stores/ha.svelte.js';
+
+  const ALARM_ID = 'alarm_control_panel.security_partition_1';
 
   let {
     outdoorLightsOn = false,
@@ -13,6 +16,10 @@
 
   // Outdoor lights button color shifts when on
   let lightsColor = $derived(outdoorLightsOn ? cv.accent.light : cv.accent.neutral);
+
+  function disarmSecurity() {
+    callHaService('alarm_control_panel', 'alarm_disarm', { entity_id: ALARM_ID });
+  }
 </script>
 
 <div class="quick-actions">
@@ -35,12 +42,12 @@
       <ShieldCheck size={44} strokeWidth={1.4} />
     </QuickShortcut>
 
-    <QuickShortcut label="Living Room TV" color={cv.accent.info}>
-      <Tv2 size={44} strokeWidth={1.4} />
+    <QuickShortcut label="Disarm" color={cv.accent.safe} onclick={disarmSecurity}>
+      <ShieldOff size={44} strokeWidth={1.4} />
     </QuickShortcut>
 
-    <QuickShortcut label="Fan" color={cv.accent.safe}>
-      <Fan size={44} strokeWidth={1.4} />
+    <QuickShortcut label="Living Room TV" color={cv.accent.info}>
+      <Tv2 size={44} strokeWidth={1.4} />
     </QuickShortcut>
   </div>
 </div>
