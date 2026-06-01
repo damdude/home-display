@@ -9,52 +9,86 @@
 
   let { events, overflow }: Props = $props();
 
-  // ── Time display ─────────────────────────────────────────────────────────────
+  // ── Time / date display ───────────────────────────────────────────────────────
 
   /** Format a timed ISO string as "h:MM AM/PM". */
   function formatTime(iso: string): string {
     const d = new Date(iso);
-    let h   = d.getHours();
-    const m = d.getMinutes().toString().padStart(2, '0');
-    const ampm = h >= 12 ? 'PM' : 'AM';
+    let h    = d.getHours();
+    const m  = d.getMinutes().toString().padStart(2, '0');
+    const ap = h >= 12 ? 'PM' : 'AM';
     h = h % 12 || 12;
-    return `${h}:${m} ${ampm}`;
+    return `${h}:${m} ${ap}`;
   }
 
-  /** Display label for the time column. */
+  /**
+   * Return a compact date prefix for non-today events:
+   *   Today     → '' (no prefix, just time)
+   *   Tomorrow  → 'Tmrw'
+   *   This week → 'Mon', 'Tue', …
+   *   Further   → 'Jun 18', 'Dec 3', …
+   */
+  function datePrefix(iso: string, allDay: boolean): string {
+    const evDate = allDay
+      ? (() => { const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); })()
+      : new Date(iso);
+
+    const today    = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    const nextWeek = new Date(today); nextWeek.setDate(today.getDate() + 7);
+
+    evDate.setHours(0, 0, 0, 0);
+
+    if (evDate.getTime() === today.getTime())    return '';
+    if (evDate.getTime() === tomorrow.getTime()) return 'Tmrw';
+    if (evDate < nextWeek) {
+      return evDate.toLocaleDateString('en-US', { weekday: 'short' });
+    }
+    return evDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  /** Full label for the time column. */
   function timeLabel(ev: CalendarEvent): string {
-    return ev.allDay ? 'All day' : formatTime(ev.start);
+    if (ev.allDay) {
+      const prefix = datePrefix(ev.start, true);
+      return prefix ? `${prefix} · All day` : 'All day';
+    }
+    const prefix = datePrefix(ev.start, false);
+    const time   = formatTime(ev.start);
+    return prefix ? `${prefix} ${time}` : time;
   }
 
   // ── "Happening now" detection — refreshed every minute ───────────────────────
 
   let nowMs = $state(Date.now());
-  let tickTimer: ReturnType<typeof setInterval>;
 
   $effect(() => {
-    tickTimer = setInterval(() => { nowMs = Date.now(); }, 60_000);
-    return () => clearInterval(tickTimer);
+    const t = setInterval(() => { nowMs = Date.now(); }, 60_000);
+    return () => clearInterval(t);
   });
 
   function isHappeningNow(ev: CalendarEvent): boolean {
     if (ev.allDay) return false;
-    const start = new Date(ev.start).getTime();
-    const end   = new Date(ev.end).getTime();
-    return nowMs >= start && nowMs < end;
+    return nowMs >= new Date(ev.start).getTime() && nowMs < new Date(ev.end).getTime();
+  }
+
+  /** True if event is not today (needs date prefix in time column) */
+  function isFutureDay(ev: CalendarEvent): boolean {
+    return datePrefix(ev.start, ev.allDay) !== '';
   }
 </script>
 
 <div class="calendar">
-  <!-- Section label — matches placeholder design -->
+  <!-- Section label -->
   <div class="section-label">
     <Calendar size={13} strokeWidth={2} />
-    <span>Today</span>
+    <span>Upcoming</span>
   </div>
 
   <!-- Card -->
   <div class="card">
     {#if events.length === 0}
-      <p class="empty">Nothing scheduled today</p>
+      <p class="empty">Nothing scheduled for the next 30 days</p>
     {:else}
       <div class="events">
         {#each events as ev (ev.start + ev.summary)}
@@ -62,6 +96,7 @@
             <span
               class="time num"
               class:all-day={ev.allDay}
+              class:future={isFutureDay(ev)}
             >{timeLabel(ev)}</span>
             <span
               class="title"
@@ -128,23 +163,30 @@
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: clamp(14px, 1.6vh, 22px);
+    gap: clamp(10px, 1.2vh, 18px);
   }
 
   .event-row {
     display: grid;
-    grid-template-columns: clamp(110px, 11.11vw, 160px) 1fr;
+    grid-template-columns: clamp(120px, 12.5vw, 180px) 1fr;
     align-items: baseline;
     gap: 0.5rem;
   }
 
-  /* Time column */
+  /* Time column — narrower text for date+time combos */
   .time {
-    font-size: clamp(15px, 1.39vw, 20px);
+    font-size: clamp(13px, 1.25vw, 18px);
     font-weight: 500;
     color: var(--color-accent-info);
     opacity: 0.8;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Future-day events: slightly muted time prefix */
+  .time.future {
+    opacity: 0.65;
   }
 
   .time.all-day {
@@ -155,7 +197,7 @@
 
   /* Title column */
   .title {
-    font-size: clamp(17px, 1.81vw, 26px);
+    font-size: clamp(16px, 1.67vw, 24px);
     font-weight: 500;
     color: var(--color-text-primary);
     white-space: nowrap;
@@ -169,7 +211,7 @@
 
   /* Overflow indicator */
   .overflow {
-    font-size: clamp(13px, 1.2vw, 16px);
+    font-size: clamp(12px, 1.1vw, 15px);
     color: var(--color-text-tertiary);
     opacity: 0.55;
     margin: 0;

@@ -7,7 +7,7 @@
  * This module:
  *   - Calls calendar.get_events on connection ready (5 s delay to settle)
  *   - Refreshes every 5 minutes
- *   - Fetches events from now to end of today (local midnight)
+ *   - Fetches events from now to 30 days ahead
  *   - Filters out already-ended events, sorts all-day first then by start
  *   - Caps at MAX_DISPLAY events; broadcasts overflow count
  *   - Stores the result via connection.setCachedCalendar() which broadcasts
@@ -20,15 +20,17 @@ import type { CalendarEvent } from '$lib/data/placeholder.js';
 const ENTITY_ID        = 'calendar.devessarhome_gmail_com';
 const INITIAL_DELAY_MS = 5_000;            // wait for entity subscription to settle
 const REFRESH_INTERVAL = 5 * 60 * 1_000;  // 5 minutes
-const MAX_DISPLAY      = 5;
+const MAX_DISPLAY      = 7;
+const LOOKAHEAD_DAYS   = 30;
 
 let started = false;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Returns the end of today (local midnight) as an ISO string. */
-function endOfToday(): string {
+/** Returns the end of the lookahead window (now + LOOKAHEAD_DAYS) as an ISO string. */
+function endOfWindow(): string {
   const d = new Date();
+  d.setDate(d.getDate() + LOOKAHEAD_DAYS);
   d.setHours(23, 59, 59, 999);
   return d.toISOString();
 }
@@ -57,13 +59,13 @@ function parseDate(dateStr: string): Date {
 export async function fetchCalendarEvents(): Promise<void> {
   try {
     const now    = new Date();
-    const endISO = endOfToday();
+    const endISO = endOfWindow();
 
     const result = await callService(
       'calendar',
       'get_events',
       {
-        entity_id:      ENTITY_ID,
+        entity_id:       ENTITY_ID,
         start_date_time: now.toISOString(),
         end_date_time:   endISO,
       },
