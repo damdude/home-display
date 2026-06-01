@@ -78,6 +78,11 @@ export async function fetchCalendarEvents(): Promise<void> {
 
     const raw = result?.response?.[ENTITY_ID]?.events ?? [];
 
+    // ── Diagnostic logging — helps diagnose empty calendar issues ─────────────
+    console.log(`[HA Calendar] Request window: ${now.toISOString()} → ${endISO}`);
+    console.log(`[HA Calendar] Raw events from HA (${raw.length}):`,
+      JSON.stringify(raw.map(e => ({ summary: e.summary, start: e.start, end: e.end }))));
+
     // Normalise and filter
     const nowMs = now.getTime();
     const events: CalendarEvent[] = raw
@@ -95,11 +100,14 @@ export async function fetchCalendarEvents(): Promise<void> {
         return parseDate(a.start).getTime() - parseDate(b.start).getTime();
       });
 
+    console.log(`[HA Calendar] Post-filter events (${events.length}):`,
+      JSON.stringify(events.map(e => ({ summary: e.summary, start: e.start, end: e.end, allDay: e.allDay }))));
+
     const overflow = Math.max(0, events.length - MAX_DISPLAY);
     const display  = events.slice(0, MAX_DISPLAY);
 
     setCachedCalendar(display, overflow);
-    console.log(`[HA] Calendar refreshed: ${display.length} events, +${overflow} overflow`);
+    console.log(`[HA Calendar] Broadcast: ${display.length} events, +${overflow} overflow`);
 
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
