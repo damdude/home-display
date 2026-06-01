@@ -196,7 +196,65 @@
     if (e.key === 'Escape' && fullscreenCamera) closeCamera();
   }
 
-  // ── Recent activity ring buffer ───────────────────────────────────────────────
+  // ── Recent activity — sourced from partition keypad entity ───────────────────
+  //
+  // The keypad entity emits strings like:
+  //   "change to fault 03"  → zone fault (zone opened/tripped)
+  //   "change to armed home"
+  //   "change to disarmed"
+  //   "change to triggered"
+  //
+  // Zone fault codes map to physical zones. Confirmed: 03 = Back Perimeter.
+  // Remaining mappings inferred from HA entity names; verify if incorrect.
+  //
+  const KEYPAD_ID = 'sensor.security_partition_1_keypad';
+
+  // Zone fault number → human-readable zone name.
+  // Zone 5 is confirmed from binary_sensor.security_zone_5 (Side Door).
+  // Zone 3 is confirmed by user (Back Perimeter).
+  // Remaining are inferred — update if any are wrong.
+  const ZONE_FAULT_MAP: Record<string, string> = {
+    '01': 'Main Door',
+    '02': 'Zone 2',              // unknown — update if wrong
+    '03': 'Back Perimeter',      // confirmed
+    '04': 'Front-Side Perimeter',// inferred
+    '05': 'Side Door',           // confirmed via security_zone_5
+    '06': 'Zone 6',
+    '07': 'Zone 7',
+    '08': 'Zone 8',
+  };
+
+  /**
+   * Convert a raw keypad state string to a human-readable activity entry.
+   * Returns { label, detail } for the activity log row.
+   */
+  function parseKeypayEvent(raw: string): { label: string; detail: string } {
+    const s = raw.toLowerCase().trim();
+
+    // "change to fault XX" — zone opened/tripped
+    const faultMatch = s.match(/fault\s+(\d+)/);
+    if (faultMatch) {
+      const code = faultMatch[1].padStart(2, '0');
+      const zone = ZONE_FAULT_MAP[code] ?? `Zone ${code}`;
+      return { label: 'Zone Fault', detail: `${zone} opened` };
+    }
+
+    // Alarm arm/disarm state changes
+    if (s.includes('armed home'))   return { label: 'System Armed',    detail: 'Home mode'    };
+    if (s.includes('armed away'))   return { label: 'System Armed',    detail: 'Away mode'    };
+    if (s.includes('armed night'))  return { label: 'System Armed',    detail: 'Night mode'   };
+    if (s.includes('disarmed'))     return { label: 'System Disarmed', detail: ''             };
+    if (s.includes('triggered'))    return { label: 'ALARM TRIGGERED', detail: ''             };
+    if (s.includes('alarm'))        return { label: 'Alarm Active',    detail: ''             };
+    if (s.includes('ready'))        return { label: 'System Ready',    detail: ''             };
+    if (s.includes('not ready'))    return { label: 'Not Ready',       detail: ''             };
+    if (s.includes('exit delay'))   return { label: 'Exit Delay',      detail: 'Arming soon'  };
+    if (s.includes('entry delay'))  return { label: 'Entry Delay',     detail: 'Disarm now'   };
+
+    // Unknown — show cleaned-up raw value
+    const cleaned = raw.replace(/^change\s+to\s+/i, '').trim();
+    return { label: 'Panel', detail: cleaned };
+  }
 
   interface ActivityEvent { id: number; time: Date; label: string; detail: string; }
 
@@ -211,15 +269,30 @@
 
   $effect(() => {
     const ents = haStore.entities;
-    const WATCHED = [{ id: ALARM_ID, label: 'Security Alarm' }, ...DOOR_IDS];
-    for (const { id, label } of WATCHED) {
-      const current = ents[id]?.state;
-      if (current === undefined) continue;
-      const prev = prevStates.get(id);
-      if (prev !== undefined && prev !== current) {
-        pushEvent(label, stateDetail(id, prev, current));
+
+    // Watch keypad for zone faults and system state changes
+    const keypayState = ents[KEYPAD_ID]?.state;
+    if (keypayState !== undefined) {
+      const prev = prevStates.get(KEYPAD_ID);
+      if (prev !== undefined && prev !== keypayState) {
+        const { label, detail } = parseKeypayEvent(keypayState);
+        pushEvent(label, detail);
       }
-      prevStates.set(id, current);
+      prevStates.set(KEYPAD_ID, keypayState);
+    }
+
+    // Also watch the alarm panel directly for triggered/arming/disarming
+    // (covers cases the keypad might not reflect immediately)
+    const alarmCurrent = ents[ALARM_ID]?.state;
+    if (alarmCurrent !== undefined) {
+      const prev = prevStates.get(ALARM_ID);
+      if (prev !== undefined && prev !== alarmCurrent) {
+        // Only log significant transitions not already covered by keypad
+        const label  = ALARM_LABEL[alarmCurrent] ?? alarmCurrent;
+        const fromLbl = ALARM_LABEL[prev] ?? prev;
+        pushEvent('Alarm Panel', `${fromLbl} → ${label}`);
+      }
+      prevStates.set(ALARM_ID, alarmCurrent);
     }
   });
 
@@ -242,11 +315,6 @@
   };
   function diagOKLabel(label: string): string  { return DIAG_OK[label]  ?? 'OK'; }
   function diagBadLabel(label: string): string { return DIAG_BAD[label] ?? 'Issue'; }
-
-  function stateDetail(entityId: string, from: string, to: string): string {
-    if (entityId === ALARM_ID) return `${ALARM_LABEL[from] ?? from} → ${ALARM_LABEL[to] ?? to}`;
-    return from === 'on' ? 'Opened (was closed)' : 'Closed (was open)';
-  }
 
   function formatRelative(date: Date): string {
     const s = Math.floor((Date.now() - date.getTime()) / 1000);
