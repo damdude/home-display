@@ -4,11 +4,14 @@
     Shield, ShieldCheck, ShieldAlert, ShieldOff,
     VideoOff, Maximize2, Minimize2,
     ShieldX, Zap, BatteryLow, HeartPulse,
+    Siren, BellRing, BellOff,
   } from 'lucide-svelte';
   import { haStore, callHaService } from '$lib/stores/ha.svelte.js';
 
   // ── Entity IDs ────────────────────────────────────────────────────────────────
   const ALARM_ID = 'alarm_control_panel.security_partition_1';
+  const PANIC_ID = 'button.security_panic_a';
+  const CHIME_ID = 'switch.security_panel_chime';
 
   // Diagnostic binary sensors (off = OK for battery/health; on = OK for ready/ac)
   const DIAG_IDS = {
@@ -73,6 +76,8 @@
   function callAlarm(service: string) {
     callHaService('alarm_control_panel', service, { entity_id: ALARM_ID });
   }
+
+  let chimeOn = $derived(haStore.entities[CHIME_ID]?.state === 'on');
 
   // ── Diagnostic sensors ─────────────────────────────────────────────────────────
   let diagReady   = $derived(haStore.entities[DIAG_IDS.ready]?.state);
@@ -380,6 +385,31 @@
         >
           <ShieldOff size={22} strokeWidth={1.6} />
           <span>Arm Night</span>
+        </button>
+
+        <!-- Panic — always red, fires immediately on tap -->
+        <button
+          class="mode-btn panic"
+          aria-label="Trigger panic alarm"
+          onclick={() => callHaService('button', 'press', { entity_id: PANIC_ID })}
+        >
+          <Siren size={22} strokeWidth={1.6} />
+          <span>Panic</span>
+        </button>
+
+        <!-- Panel Chime toggle -->
+        <button
+          class="mode-btn"
+          class:active={chimeOn}
+          style:--btn-color="var(--color-accent-info)"
+          onclick={() => callHaService('switch', 'toggle', { entity_id: CHIME_ID })}
+        >
+          {#if chimeOn}
+            <BellRing size={22} strokeWidth={1.6} />
+          {:else}
+            <BellOff size={22} strokeWidth={1.6} />
+          {/if}
+          <span>Chime</span>
         </button>
       </div>
     </div>
