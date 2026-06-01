@@ -13,12 +13,15 @@
   const PANIC_ID = 'button.security_panic_a';
   const CHIME_ID = 'switch.security_panel_chime';
 
-  // Diagnostic binary sensors (off = OK for battery/health; on = OK for ready/ac)
+  // Diagnostic binary sensors
+  // off = OK for battery/health/alarm/fire; on = OK for ready/ac
   const DIAG_IDS = {
     ready:   'binary_sensor.security_partition_1_ready',
     ac:      'binary_sensor.security_partition_1_ac_power',
     battery: 'binary_sensor.security_partition_1_panel_battery',
     health:  'binary_sensor.security_partition_1_panel_health',
+    alarm:   'binary_sensor.security_partition_1_alarm',
+    fire:    'binary_sensor.security_partition_1_fire',
   } as const;
 
   const CAMERAS: { entityId: string; name: string }[] = [
@@ -84,12 +87,16 @@
   let diagAC      = $derived(haStore.entities[DIAG_IDS.ac]?.state);
   let diagBattery = $derived(haStore.entities[DIAG_IDS.battery]?.state);
   let diagHealth  = $derived(haStore.entities[DIAG_IDS.health]?.state);
+  let diagAlarm   = $derived(haStore.entities[DIAG_IDS.alarm]?.state);
+  let diagFire    = $derived(haStore.entities[DIAG_IDS.fire]?.state);
 
   // 'on' = ready; 'off' = not ready (or unknown → treat as unknown, show nothing)
-  let isReady    = $derived(diagReady   === 'on');
-  let hasAC      = $derived(diagAC      === 'on');
-  let batteryOK  = $derived(diagBattery === 'off'); // inverted: off = OK
-  let isHealthy  = $derived(diagHealth  === 'off'); // inverted: off = healthy
+  let isReady      = $derived(diagReady   === 'on');
+  let hasAC        = $derived(diagAC      === 'on');
+  let batteryOK    = $derived(diagBattery === 'off'); // inverted: off = OK
+  let isHealthy    = $derived(diagHealth  === 'off'); // inverted: off = healthy
+  let alarmSilent  = $derived(diagAlarm   === 'off'); // off = no alarm active
+  let fireSilent   = $derived(diagFire    === 'off'); // off = no fire active
 
   // ── Ready/not-ready message ────────────────────────────────────────────────────
   let openDoorNames = $derived(
@@ -218,12 +225,22 @@
 
   // ── Diagnostic label helpers ──────────────────────────────────────────────────
   const DIAG_OK: Record<string, string> = {
-    'Ready': 'Ready', 'AC Power': 'AC OK', 'Battery': 'Battery OK', 'Health': 'Healthy',
+    'Ready':        'Ready',
+    'AC Power':     'AC OK',
+    'Battery':      'Battery OK',
+    'Health':       'Healthy',
+    'Alarm Status': 'OK',
+    'Fire Status':  'OK',
   };
   const DIAG_BAD: Record<string, string> = {
-    'Ready': 'Not Ready', 'AC Power': 'On Battery', 'Battery': 'Low Battery', 'Health': 'Issue',
+    'Ready':        'Not Ready',
+    'AC Power':     'On Battery',
+    'Battery':      'Low Battery',
+    'Health':       'Issue',
+    'Alarm Status': 'ACTIVE',
+    'Fire Status':  'ALARM',
   };
-  function diagOKLabel(label: string): string { return DIAG_OK[label] ?? 'OK'; }
+  function diagOKLabel(label: string): string  { return DIAG_OK[label]  ?? 'OK'; }
   function diagBadLabel(label: string): string { return DIAG_BAD[label] ?? 'Issue'; }
 
   function stateDetail(entityId: string, from: string, to: string): string {
@@ -331,19 +348,21 @@
 
       <!-- 4. Diagnostic pill row -->
       <div class="diag-pills">
-        {#snippet diagPill(label: string, ok: boolean, visible: boolean)}
+        {#snippet diagPill(label: string, ok: boolean, visible: boolean, alertPulse: boolean)}
           {#if visible}
-            <span class="diag-pill" class:ok class:issue={!ok}>
+            <span class="diag-pill" class:ok class:issue={!ok} class:alert-pulse={alertPulse && !ok}>
               <span class="diag-dot"></span>
               {label}: <span class="diag-status">{ok ? diagOKLabel(label) : diagBadLabel(label)}</span>
             </span>
           {/if}
         {/snippet}
 
-        {@render diagPill('Ready',    isReady,    isDisarmed && diagReady !== undefined)}
-        {@render diagPill('AC Power', hasAC,      diagAC      !== undefined)}
-        {@render diagPill('Battery',  batteryOK,  diagBattery !== undefined)}
-        {@render diagPill('Health',   isHealthy,  diagHealth  !== undefined)}
+        {@render diagPill('Ready',        isReady,     isDisarmed && diagReady !== undefined, false)}
+        {@render diagPill('AC Power',     hasAC,       diagAC      !== undefined,              false)}
+        {@render diagPill('Battery',      batteryOK,   diagBattery !== undefined,              false)}
+        {@render diagPill('Health',       isHealthy,   diagHealth  !== undefined,              false)}
+        {@render diagPill('Alarm Status', alarmSilent, diagAlarm   !== undefined,              true)}
+        {@render diagPill('Fire Status',  fireSilent,  diagFire    !== undefined,              true)}
       </div>
     </div>
 
@@ -722,6 +741,11 @@
 
   .diag-pill.ok    .diag-status { color: var(--color-accent-safe);     }
   .diag-pill.issue .diag-status { color: var(--color-accent-triggered); }
+
+  /* Alarm / Fire pills pulse when active */
+  .diag-pill.alert-pulse {
+    animation: alarmPulse 1.2s ease-in-out infinite;
+  }
 
   /* Right tile */
   .alarm-right {
