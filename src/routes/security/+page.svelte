@@ -477,7 +477,7 @@
   .security-page {
     height: 100%;
     display: grid;
-    grid-template-rows: auto 4.5fr 3.5fr 1.5fr;
+    grid-template-rows: auto 4.5fr 2.5fr 1.5fr;
     gap: clamp(6px, 0.8vh, 12px);
     padding: clamp(4px, 0.5vh, 8px) 5vw clamp(6px, 0.7vh, 10px);
     overflow: hidden;
