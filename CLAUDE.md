@@ -70,7 +70,7 @@ screensaver. Develop with code on Mac, runtime on Pi, view from Mac browser.\
 - Music: now-playing display + casting controls (casting disabled until Premium)\
 \
 ## Development workflow\
-- All code lives on the Mac at ~/Projects/home-display/\
+- All code lives on the Mac at ~/Documents/Claude/Projects/Dashboard/\
 - Edits happen on the Mac (Claude Code or any editor)\
 - Files synced to Pi via rsync; Pi runs the dev server, Mac views the result\
 - Pi path: /home/dash/home-display/\
@@ -78,7 +78,7 @@ screensaver. Develop with code on Mac, runtime on Pi, view from Mac browser.\
 - Sync command (run from Mac after each session):\
     rsync -avz --delete \\\
       --exclude 'node_modules' --exclude '.git' --exclude '.svelte-kit' \\\
-      ~/Projects/home-display/ dash@192.168.7.21:/home/dash/home-display/\
+      ~/Documents/Claude/Projects/Dashboard/ dash@192.168.7.21:/home/dash/home-display/\
 - The dev server binds to 0.0.0.0:5173 so it's accessible from the Mac\
 - View dashboard from Mac browser at: http://192.168.7.21:5173\
 - Visual validation on Pi's monitor: switch to production mode via systemd\
