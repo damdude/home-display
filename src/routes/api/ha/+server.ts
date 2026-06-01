@@ -10,7 +10,8 @@
  *   {type: 'status',   connected: boolean}         — connection state changes
  *   {type: 'snapshot', entities: HassEntities}     — full entity map on connect
  *   {type: 'patch',    entityId, state: HassEntity} — individual entity changes
- *   {type: 'forecast', data: WeatherForecastDay[]} — 7-day forecast (hourly refresh)
+ *   {type: 'forecast',  data: WeatherForecastDay[]}           — 7-day forecast (hourly refresh)
+ *   {type: 'calendar',  events: CalendarEvent[], overflow: N} — today's events (5-min refresh)
  *
  * A comment heartbeat (":heartbeat") is sent every 15 s to keep the connection
  * alive through proxies and idle-connection timeouts.
@@ -18,12 +19,13 @@
 import { env } from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
 import { subscribe } from '$lib/server/ha/connection.js';
-import { startForecastRefresh } from '$lib/server/ha/forecast.js';
+import { startForecastRefresh }  from '$lib/server/ha/forecast.js';
+import { startCalendarRefresh }  from '$lib/server/ha/calendar.js';
 import type { RequestHandler } from './$types';
 
-// Start forecast refresh loop once at module load.
-// Idempotent — safe to call on every SSE connection.
+// Start refresh loops once at module load. Idempotent.
 startForecastRefresh();
+startCalendarRefresh();
 
 export const GET: RequestHandler = () => {
   if (!env.HA_URL || !env.HA_TOKEN) {

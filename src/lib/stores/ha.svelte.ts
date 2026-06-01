@@ -16,7 +16,7 @@
  */
 import { browser } from '$app/environment';
 import type { HassEntities } from 'home-assistant-js-websocket';
-import type { WeatherForecastDay } from '$lib/data/placeholder.js';
+import type { WeatherForecastDay, CalendarEvent } from '$lib/data/placeholder.js';
 
 // ── Reactive state ────────────────────────────────────────────────────────────
 
@@ -27,6 +27,10 @@ export const haStore = $state({
   entities: {} as HassEntities,
   /** 7-day daily forecast. Empty until first forecast message from server. */
   forecast: [] as WeatherForecastDay[],
+  /** Today's upcoming calendar events (up to 5). Empty until first calendar message. */
+  calendarEvents: [] as CalendarEvent[],
+  /** Number of today's events beyond the displayed 5. */
+  calendarOverflow: 0,
   /** HA instance location_name from /api/config (e.g. "Folsom"). Empty until received. */
   locationName: '',
 });
@@ -71,11 +75,13 @@ export function startHaStream(): () => void {
   es.onmessage = (e: MessageEvent<string>) => {
     try {
       const msg = JSON.parse(e.data) as {
-        type: 'snapshot' | 'patch' | 'forecast' | 'config' | 'status';
+        type: 'snapshot' | 'patch' | 'forecast' | 'calendar' | 'config' | 'status';
         entities?: HassEntities;
         entityId?: string;
         state?: HassEntities[string];
         data?: WeatherForecastDay[];
+        events?: CalendarEvent[];
+        overflow?: number;
         locationName?: string;
         connected?: boolean;
       };
@@ -96,6 +102,13 @@ export function startHaStream(): () => void {
 
         case 'forecast':
           if (msg.data) haStore.forecast = msg.data;
+          break;
+
+        case 'calendar':
+          if (msg.events) {
+            haStore.calendarEvents   = msg.events;
+            haStore.calendarOverflow = msg.overflow ?? 0;
+          }
           break;
 
         case 'config':

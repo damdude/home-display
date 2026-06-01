@@ -1,6 +1,6 @@
 <script lang="ts">
   import WeatherStrip        from '$lib/components/WeatherStrip.svelte';
-  import CalendarPlaceholder from '$lib/components/CalendarPlaceholder.svelte';
+  import CalendarTile from '$lib/components/CalendarTile.svelte';
   import ClimateSplit        from '$lib/components/ClimateSplit.svelte';
   import QuickShortcuts      from '$lib/components/QuickShortcuts.svelte';
   import MediaNowPlaying     from '$lib/components/MediaNowPlaying.svelte';
@@ -146,7 +146,7 @@
   </section>
 
   <section class="zone zone-calendar">
-    <CalendarPlaceholder />
+    <CalendarTile events={haStore.calendarEvents} overflow={haStore.calendarOverflow} />
   </section>
 
   <section class="zone zone-climate">

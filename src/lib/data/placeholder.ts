@@ -34,6 +34,15 @@ export interface PillDescriptor {
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
+export interface CalendarEvent {
+  summary: string;
+  /** ISO datetime string (timed) or YYYY-MM-DD (all-day). */
+  start: string;
+  /** ISO datetime string (timed) or YYYY-MM-DD (all-day). */
+  end: string;
+  allDay: boolean;
+}
+
 export interface WeatherForecastDay {
   datetime: string;
   condition: string;

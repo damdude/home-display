@@ -17,7 +17,9 @@ import {
   type HassEntity,
 } from 'home-assistant-js-websocket';
 import { env } from '$env/dynamic/private';
-import type { WeatherForecastDay } from '$lib/data/placeholder.js';
+import type { WeatherForecastDay, CalendarEvent } from '$lib/data/placeholder.js';
+
+export type { CalendarEvent };
 
 // ── Public event union ────────────────────────────────────────────────────────
 
@@ -25,6 +27,7 @@ export type HaEvent =
   | { type: 'snapshot'; entities: HassEntities }
   | { type: 'patch'; entityId: string; state: HassEntity }
   | { type: 'forecast'; data: WeatherForecastDay[] }
+  | { type: 'calendar'; events: CalendarEvent[]; overflow: number }
   | { type: 'config'; locationName: string }
   | { type: 'status'; connected: boolean };
 
@@ -35,6 +38,8 @@ let isConnected = false;
 let initCalled = false;
 let currentEntities: HassEntities = {};
 let cachedForecast: WeatherForecastDay[] = [];
+let cachedCalendarEvents: CalendarEvent[] = [];
+let cachedCalendarOverflow = 0;
 let cachedLocationName = '';
 
 const subscribers = new Set<(event: HaEvent) => void>();
@@ -60,6 +65,9 @@ export function subscribe(cb: (event: HaEvent) => void): () => void {
     cb({ type: 'snapshot', entities: currentEntities });
     if (cachedForecast.length > 0) {
       cb({ type: 'forecast', data: cachedForecast });
+    }
+    if (cachedCalendarEvents.length > 0 || cachedCalendarOverflow > 0) {
+      cb({ type: 'calendar', events: cachedCalendarEvents, overflow: cachedCalendarOverflow });
     }
     if (cachedLocationName) {
       cb({ type: 'config', locationName: cachedLocationName });
@@ -91,6 +99,18 @@ export function setCachedForecast(data: WeatherForecastDay[]): void {
 
 export function getCachedForecast(): WeatherForecastDay[] {
   return cachedForecast;
+}
+
+// ── Calendar cache (written by calendar.ts) ───────────────────────────────────
+
+export function setCachedCalendar(events: CalendarEvent[], overflow: number): void {
+  cachedCalendarEvents  = events;
+  cachedCalendarOverflow = overflow;
+  broadcast({ type: 'calendar', events, overflow });
+}
+
+export function getCachedCalendar(): { events: CalendarEvent[]; overflow: number } {
+  return { events: cachedCalendarEvents, overflow: cachedCalendarOverflow };
 }
 
 // ── Connection lifecycle ──────────────────────────────────────────────────────
