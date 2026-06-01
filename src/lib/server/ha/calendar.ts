@@ -71,11 +71,11 @@ export async function fetchCalendarEvents(): Promise<void> {
       },
       true, // return_response
     ) as { response: Record<string, { events: Array<{
-      summary?: string;
-      start: string;
-      end: string;
+      summary?:     string;
+      start:        string;
+      end:          string;
       description?: string | null;
-      location?: string | null;
+      location?:    string | null;
     }> }> };
 
     const raw = result?.response?.[ENTITY_ID]?.events ?? [];
@@ -89,10 +89,12 @@ export async function fetchCalendarEvents(): Promise<void> {
     const nowMs = now.getTime();
     const events: CalendarEvent[] = raw
       .map(ev => ({
-        summary: (ev.summary ?? 'Untitled event').trim() || 'Untitled event',
-        start:   ev.start,
-        end:     ev.end,
-        allDay:  isAllDay(ev.start),
+        summary:     (ev.summary ?? 'Untitled event').trim() || 'Untitled event',
+        start:       ev.start,
+        end:         ev.end,
+        allDay:      isAllDay(ev.start),
+        description: ev.description ?? null,
+        location:    ev.location    ?? null,
       }))
       // Drop events that have already ended (end is in the past)
       .filter(ev => parseDate(ev.end).getTime() > nowMs)

@@ -41,6 +41,10 @@ export interface CalendarEvent {
   /** ISO datetime string (timed) or YYYY-MM-DD (all-day). */
   end: string;
   allDay: boolean;
+  /** Event description/notes from the calendar provider. May contain newlines. */
+  description?: string | null;
+  /** Physical location string, if the organiser set one. */
+  location?: string | null;
 }
 
 export interface WeatherForecastDay {
