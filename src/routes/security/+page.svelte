@@ -753,31 +753,34 @@
     border: 1px solid var(--color-border);
     border-radius: 24px;
     box-shadow: inset 0 1px 0 var(--color-highlight);
-    padding: 0.85rem 1rem;
+    padding: 0.7rem 0.9rem;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
-  /* 2×2 button grid */
+  /* 2-column × 3-row button grid */
   .mode-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: clamp(6px, 0.8vw, 12px);
+    gap: clamp(5px, 0.55vw, 9px);
     width: 100%;
   }
 
   .mode-btn {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.4em;
-    padding: clamp(12px, 1.2vh, 18px) 0.5em;
+    gap: 0.28em;
+    /* height scales with tile width (~55vw × 12% per side = 6.6vw) */
+    min-height: clamp(56px, 6.6vw, 96px);
+    padding: 0.5em 0.4em;
     border-radius: 14px;
     border: 1px solid color-mix(in srgb, var(--btn-color) 30%, transparent);
     background: color-mix(in srgb, var(--btn-color) 10%, var(--color-surface-2));
     color: var(--color-text-secondary);
-    font-size: clamp(13px, 1.25vw, 18px);
+    font-size: clamp(14px, 1.32vw, 19px);
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
@@ -797,9 +800,21 @@
     opacity: 1;
   }
 
+  /* Panic button — always red/visible, never dimmed */
+  .mode-btn.panic {
+    --btn-color: var(--color-accent-triggered);
+    background: color-mix(in srgb, var(--color-accent-triggered) 16%, var(--color-surface-2));
+    border-color: color-mix(in srgb, var(--color-accent-triggered) 42%, transparent);
+    color: var(--color-accent-triggered);
+    font-weight: 600;
+    opacity: 0.9;
+  }
+  .mode-btn.panic:hover { opacity: 1; }
+
+  /* Icon inside buttons — ~45% of min-height */
   .mode-btn :global(svg) {
-    width:  clamp(18px, 1.67vw, 24px);
-    height: clamp(18px, 1.67vw, 24px);
+    width:  clamp(24px, 2.9vw, 42px);
+    height: clamp(24px, 2.9vw, 42px);
     flex-shrink: 0;
   }
 
