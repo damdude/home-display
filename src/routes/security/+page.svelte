@@ -68,6 +68,7 @@
   let alarmLabel     = $derived(ALARM_LABEL[alarmState]  ?? alarmState);
   let alarmColor     = $derived(ALARM_COLOR[alarmState]  ?? 'var(--color-text-tertiary)');
   let alarmTriggered = $derived(alarmState === 'triggered');
+  let isDisarmed     = $derived(alarmState === 'disarmed');
 
   function callAlarm(service: string) {
     callHaService('alarm_control_panel', service, { entity_id: ALARM_ID });
@@ -316,8 +317,8 @@
         {alarmLabel}
       </p>
 
-      <!-- 3. Ready/not-ready message -->
-      {#if readyMessage}
+      <!-- 3. Ready/not-ready message — only meaningful when disarmed -->
+      {#if isDisarmed && readyMessage}
         <div class="ready-msg" class:not-ready={!isReady}>
           <p class="ready-text">{readyMessage}</p>
         </div>
@@ -334,7 +335,7 @@
           {/if}
         {/snippet}
 
-        {@render diagPill('Ready',    isReady,    diagReady   !== undefined)}
+        {@render diagPill('Ready',    isReady,    isDisarmed && diagReady !== undefined)}
         {@render diagPill('AC Power', hasAC,      diagAC      !== undefined)}
         {@render diagPill('Battery',  batteryOK,  diagBattery !== undefined)}
         {@render diagPill('Health',   isHealthy,  diagHealth  !== undefined)}
