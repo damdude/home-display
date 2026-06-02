@@ -196,103 +196,157 @@
     if (e.key === 'Escape' && fullscreenCamera) closeCamera();
   }
 
-  // ── Recent activity — sourced from partition keypad entity ───────────────────
+  // ── Recent activity ───────────────────────────────────────────────────────────
   //
-  // The keypad entity emits strings like:
-  //   "change to fault 03"  → zone fault (zone opened/tripped)
-  //   "change to armed home"
-  //   "change to disarmed"
-  //   "change to triggered"
+  // Sources:
+  //   • sensor.security_partition_1_keypad  — Envisalink panel strings
+  //   • alarm_control_panel.security_partition_1
+  //   • Door binary sensors (DOOR_IDS)
+  //   • binary_sensor.security_partition_1_alarm / _fire
   //
-  // Zone fault codes map to physical zones. Confirmed: 03 = Back Perimeter.
-  // Remaining mappings inferred from HA entity names; verify if incorrect.
-  //
-  const KEYPAD_ID = 'sensor.security_partition_1_keypad';
+  const KEYPAD_ID    = 'sensor.security_partition_1_keypad';
+  const ALARM_SEN_ID = 'binary_sensor.security_partition_1_alarm';
+  const FIRE_SEN_ID  = 'binary_sensor.security_partition_1_fire';
 
-  // Zone fault number → human-readable zone name.
-  // Zone 5 is confirmed from binary_sensor.security_zone_5 (Side Door).
-  // Zone 3 is confirmed by user (Back Perimeter).
-  // Remaining are inferred — update if any are wrong.
-  const ZONE_FAULT_MAP: Record<string, string> = {
+  // ── Fault map ──────────────────────────────────────────────────────────────
+  // Maps the 2-digit zone code (from "FAULT 03" or "FAULT 03002") to a
+  // human-readable zone name.
+  //
+  // HOW TO UPDATE: When you see an unknown fault code in Recent Activity
+  // (e.g. "Keypad fault: 04"), identify which door or sensor triggered it
+  // and add the mapping here. Codes are two-digit zero-padded strings.
+  //
+  const FAULT_MAP: Record<string, string> = {
     '01': 'Main Door',
-    '02': 'Zone 2',              // unknown — update if wrong
-    '03': 'Back Perimeter',      // confirmed
-    '04': 'Front-Side Perimeter',// inferred
-    '05': 'Side Door',           // confirmed via security_zone_5
-    '06': 'Zone 6',
-    '07': 'Zone 7',
-    '08': 'Zone 8',
+    '02': 'Front-Side Perimeter', // update if incorrect
+    '03': 'Back Perimeter',       // confirmed
+    '05': 'Side Door',            // confirmed via security_zone_5
+    // Add new mappings here as you identify them, e.g.: '04': 'Garage Door',
   };
 
-  /**
-   * Convert a raw keypad state string to a human-readable activity entry.
-   * Returns { label, detail } for the activity log row.
-   */
-  function parseKeypayEvent(raw: string): { label: string; detail: string } {
-    const s = raw.toLowerCase().trim();
+  // ── Activity event types (controls dot colour) ────────────────────────────
+  type ActivityType = 'fault' | 'arm' | 'door-open' | 'door-closed' | 'alarm' | 'info';
 
-    // "change to fault XX" — zone opened/tripped
-    const faultMatch = s.match(/fault\s+(\d+)/);
+  interface ActivityEvent {
+    id:     number;
+    time:   Date;
+    type:   ActivityType;
+    text:   string;        // single description string shown in the row
+  }
+
+  let activityEvents = $state<ActivityEvent[]>([]);
+  let activitySeq    = 0;
+  const prevStates   = new Map<string, string>();
+  const MAX_ACTIVITY = 15;
+
+  function pushActivity(type: ActivityType, text: string) {
+    activityEvents = [
+      { id: activitySeq++, time: new Date(), type, text },
+      ...activityEvents,
+    ].slice(0, MAX_ACTIVITY);
+  }
+
+  // ── Keypad parser ─────────────────────────────────────────────────────────
+  // The Envisalink panel emits uppercase strings, possibly with leading/
+  // trailing whitespace, e.g. " DISARMED CHIME   Ready to Arm  ", "FAULT 03",
+  // "FAULT 03002", "ARMED AWAY", "ENTRY DELAY".
+  //
+  function parseKeypad(raw: string): { type: ActivityType; text: string } {
+    const s = raw.trim().toUpperCase();
+
+    // "FAULT 03" or "FAULT 03002" — take first two digits as zone code
+    const faultMatch = s.match(/FAULT\s*(\d{2})/);
     if (faultMatch) {
-      const code = faultMatch[1].padStart(2, '0');
-      const zone = ZONE_FAULT_MAP[code] ?? `Zone ${code}`;
-      return { label: 'Zone Fault', detail: `${zone} opened` };
+      const code = faultMatch[1];
+      const zone = FAULT_MAP[code];
+      return zone
+        ? { type: 'fault', text: `Fault: ${zone}` }
+        : { type: 'fault', text: `Keypad fault: ${raw.trim().replace(/^FAULT\s*/i, '')}` };
     }
 
-    // Alarm arm/disarm state changes
-    if (s.includes('armed home'))   return { label: 'System Armed',    detail: 'Home mode'    };
-    if (s.includes('armed away'))   return { label: 'System Armed',    detail: 'Away mode'    };
-    if (s.includes('armed night'))  return { label: 'System Armed',    detail: 'Night mode'   };
-    if (s.includes('disarmed'))     return { label: 'System Disarmed', detail: ''             };
-    if (s.includes('triggered'))    return { label: 'ALARM TRIGGERED', detail: ''             };
-    if (s.includes('alarm'))        return { label: 'Alarm Active',    detail: ''             };
-    if (s.includes('ready'))        return { label: 'System Ready',    detail: ''             };
-    if (s.includes('not ready'))    return { label: 'Not Ready',       detail: ''             };
-    if (s.includes('exit delay'))   return { label: 'Exit Delay',      detail: 'Arming soon'  };
-    if (s.includes('entry delay'))  return { label: 'Entry Delay',     detail: 'Disarm now'   };
+    if (s.includes('ARMED AWAY'))   return { type: 'arm',  text: 'Armed — Away'  };
+    if (s.includes('ARMED HOME'))   return { type: 'arm',  text: 'Armed — Home'  };
+    if (s.includes('ARMED NIGHT'))  return { type: 'arm',  text: 'Armed — Night' };
+    if (s.includes('ARMED STAY'))   return { type: 'arm',  text: 'Armed — Stay'  };
+    if (s.includes('DISARMED'))     return { type: 'arm',  text: 'Disarmed'      };
+    if (s.includes('TRIGGERED'))    return { type: 'alarm', text: 'ALARM TRIGGERED' };
+    if (s.includes('ALARM'))        return { type: 'alarm', text: 'Alarm Active'    };
+    if (s.includes('ENTRY DELAY'))  return { type: 'info', text: 'Entry delay — disarm now' };
+    if (s.includes('EXIT DELAY'))   return { type: 'info', text: 'Exit delay — arming soon' };
 
-    // Unknown — show cleaned-up raw value
-    const cleaned = raw.replace(/^change\s+to\s+/i, '').trim();
-    return { label: 'Panel', detail: cleaned };
+    // Unknown keypad string — show trimmed raw value
+    return { type: 'info', text: raw.trim() };
   }
 
-  interface ActivityEvent { id: number; time: Date; label: string; detail: string; }
-
-  let events       = $state<ActivityEvent[]>([]);
-  let eventSeq     = 0;
-  const prevStates = new Map<string, string>();
-  const MAX_EVENTS = 10;
-
-  function pushEvent(label: string, detail: string) {
-    events = [{ id: eventSeq++, time: new Date(), label, detail }, ...events].slice(0, MAX_EVENTS);
-  }
-
+  // ── $effect: watch all sources ────────────────────────────────────────────
   $effect(() => {
     const ents = haStore.entities;
 
-    // Watch keypad for zone faults and system state changes
-    const keypayState = ents[KEYPAD_ID]?.state;
-    if (keypayState !== undefined) {
+    // 1. Keypad
+    const kpState = ents[KEYPAD_ID]?.state;
+    if (kpState !== undefined) {
       const prev = prevStates.get(KEYPAD_ID);
-      if (prev !== undefined && prev !== keypayState) {
-        const { label, detail } = parseKeypayEvent(keypayState);
-        pushEvent(label, detail);
+      if (prev !== undefined && prev !== kpState) {
+        const { type, text } = parseKeypad(kpState);
+        pushActivity(type, text);
       }
-      prevStates.set(KEYPAD_ID, keypayState);
+      prevStates.set(KEYPAD_ID, kpState);
     }
 
-    // Also watch the alarm panel directly for triggered/arming/disarming
-    // (covers cases the keypad might not reflect immediately)
-    const alarmCurrent = ents[ALARM_ID]?.state;
-    if (alarmCurrent !== undefined) {
+    // 2. Alarm control panel (catches triggered/arming/disarming HA states)
+    const alarmState = ents[ALARM_ID]?.state;
+    if (alarmState !== undefined) {
       const prev = prevStates.get(ALARM_ID);
-      if (prev !== undefined && prev !== alarmCurrent) {
-        // Only log significant transitions not already covered by keypad
-        const label  = ALARM_LABEL[alarmCurrent] ?? alarmCurrent;
-        const fromLbl = ALARM_LABEL[prev] ?? prev;
-        pushEvent('Alarm Panel', `${fromLbl} → ${label}`);
+      if (prev !== undefined && prev !== alarmState) {
+        const fromLbl = ALARM_LABEL[prev]       ?? prev;
+        const toLbl   = ALARM_LABEL[alarmState] ?? alarmState;
+        const type: ActivityType =
+          alarmState === 'triggered' ? 'alarm' :
+          alarmState === 'disarmed'  ? 'arm'   : 'arm';
+        pushActivity(type, `${fromLbl} → ${toLbl}`);
       }
-      prevStates.set(ALARM_ID, alarmCurrent);
+      prevStates.set(ALARM_ID, alarmState);
+    }
+
+    // 3. Door binary sensors
+    for (const { entityId, label } of DOOR_IDS) {
+      const state = ents[entityId]?.state;
+      if (state === undefined) continue;
+      const prev = prevStates.get(entityId);
+      if (prev !== undefined && prev !== state) {
+        const isOpen = state === 'on';
+        pushActivity(
+          isOpen ? 'door-open' : 'door-closed',
+          isOpen ? `${label} opened` : `${label} closed`,
+        );
+      }
+      prevStates.set(entityId, state ?? '');
+    }
+
+    // 4. Alarm binary sensor
+    const alarmSenState = ents[ALARM_SEN_ID]?.state;
+    if (alarmSenState !== undefined) {
+      const prev = prevStates.get(ALARM_SEN_ID);
+      if (prev !== undefined && prev !== alarmSenState) {
+        pushActivity(
+          alarmSenState === 'on' ? 'alarm' : 'info',
+          alarmSenState === 'on' ? 'Alarm Active' : 'Alarm Cleared',
+        );
+      }
+      prevStates.set(ALARM_SEN_ID, alarmSenState);
+    }
+
+    // 5. Fire binary sensor
+    const fireSenState = ents[FIRE_SEN_ID]?.state;
+    if (fireSenState !== undefined) {
+      const prev = prevStates.get(FIRE_SEN_ID);
+      if (prev !== undefined && prev !== fireSenState) {
+        pushActivity(
+          fireSenState === 'on' ? 'alarm' : 'info',
+          fireSenState === 'on' ? 'Fire Alarm' : 'Fire Cleared',
+        );
+      }
+      prevStates.set(FIRE_SEN_ID, fireSenState);
     }
   });
 
@@ -505,15 +559,16 @@
   <!-- ── Recent activity ────────────────────────────────────────────────────── -->
   <div class="activity">
     <div class="activity-label">Recent Activity</div>
-    {#if events.length === 0}
+    {#if activityEvents.length === 0}
       <p class="no-events">No activity recorded this session</p>
     {:else}
-      <div class="event-list">
-        {#each events as ev (ev.id)}
-          <div class="event-row">
-            <span class="event-time">{formatRelative(ev.time)}{now && ''}</span>
-            <span class="event-entity">{ev.label}</span>
-            <span class="event-detail">{ev.detail}</span>
+      <div class="activity-list">
+        {#each activityEvents as ev (ev.id)}
+          <div class="activity-row">
+            <span class="act-dot act-dot--{ev.type}"></span>
+            <span class="act-text">{ev.text}</span>
+            <!-- bind to `now` so relative timestamps update every 15s -->
+            <span class="act-time">{formatRelative(ev.time)}{now ? '' : ''}</span>
           </div>
         {/each}
       </div>
@@ -914,33 +969,47 @@
     padding: 0.3rem 0;
   }
 
-  .event-list {
+  /* Scrollable list — clips to activity area height */
+  .activity-list {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    overflow: hidden;
+    gap: 2px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    flex: 1;
+    min-height: 0;
   }
+  .activity-list::-webkit-scrollbar { display: none; }
 
-  .event-row {
+  /* One row: [dot] [text ···] [timestamp] */
+  .activity-row {
     display: grid;
-    grid-template-columns: 5em 1fr 1fr;
+    grid-template-columns: 10px 1fr auto;
+    align-items: center;
     gap: 0.5em;
-    align-items: baseline;
-    padding: 0.15rem 0;
+    padding: 0.18rem 0;
     border-bottom: 1px solid var(--color-border);
-    opacity: 0.85;
+    opacity: 0.88;
   }
+  .activity-row:last-child { border-bottom: none; }
 
-  .event-time {
-    font-size: clamp(11px, 0.9vw, 13px);
-    color: var(--color-text-tertiary);
-    font-weight: 500;
-    font-feature-settings: 'tnum' 1;
-    white-space: nowrap;
+  /* Type-coloured dot */
+  .act-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--color-text-tertiary);
   }
+  .act-dot--fault       { background: var(--color-accent-triggered); }
+  .act-dot--alarm       { background: var(--color-accent-triggered); }
+  .act-dot--arm         { background: var(--color-accent-info);      }
+  .act-dot--door-open   { background: var(--color-accent-alert);     }
+  .act-dot--door-closed { background: var(--color-accent-safe);      }
+  .act-dot--info        { background: var(--color-text-tertiary);    }
 
-  .event-entity {
-    font-size: clamp(12px, 0.97vw, 14px);
+  .act-text {
+    font-size: clamp(12px, 1.04vw, 15px);
     color: var(--color-text-primary);
     font-weight: 500;
     white-space: nowrap;
@@ -948,13 +1017,12 @@
     text-overflow: ellipsis;
   }
 
-  .event-detail {
-    font-size: clamp(12px, 0.97vw, 14px);
-    color: var(--color-text-secondary);
+  .act-time {
+    font-size: clamp(11px, 0.9vw, 13px);
+    color: var(--color-text-tertiary);
     font-weight: 400;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-feature-settings: 'tnum' 1;
   }
 
   /* ── Fullscreen overlay ── */
