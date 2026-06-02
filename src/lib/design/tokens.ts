@@ -57,6 +57,9 @@ export const cv = {
   },
 } as const;
 
+// Screensaver / idle timeout
+export const IDLE_TIMEOUT_MS = 90_000; // 90 s of no interaction before screensaver
+
 // Border radii
 export const radius = {
   tile:  '28px',
