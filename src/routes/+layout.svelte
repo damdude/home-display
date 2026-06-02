@@ -1,15 +1,18 @@
 <script lang="ts">
   import '../app.css';
-  import { onMount } from 'svelte';
+  import { onMount }  from 'svelte';
   import { fade }     from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { page }     from '$app/stores';
   import type { Snippet } from 'svelte';
-  import TopStrip      from '$lib/components/TopStrip.svelte';
-  import StatusPillRow from '$lib/components/StatusPillRow.svelte';
-  import BottomNav     from '$lib/components/BottomNav.svelte';
-  import { startHaStream } from '$lib/stores/ha.svelte.js';
-  import { haStore }       from '$lib/stores/ha.svelte.js';
+  import TopStrip         from '$lib/components/TopStrip.svelte';
+  import StatusPillRow    from '$lib/components/StatusPillRow.svelte';
+  import BottomNav        from '$lib/components/BottomNav.svelte';
+  import MusicScreensaver from '$lib/components/music/MusicScreensaver.svelte';
+  import { startHaStream }       from '$lib/stores/ha.svelte.js';
+  import { haStore }             from '$lib/stores/ha.svelte.js';
+  import { musicState }          from '$lib/stores/musicState.svelte.js';
+  import { idleState, startIdleDetection } from '$lib/stores/idleDetection.svelte.js';
 
   import {
     alarmSecurityPartition1,
@@ -26,8 +29,24 @@
 
   let { children }: { children: Snippet } = $props();
 
-  // ── HA stream ───────────────────────────────────────────────────────────────
-  onMount(() => startHaStream());
+  // ── HA stream + idle detection ─────────────────────────────────────────────
+  onMount(() => {
+    const stopHa   = startHaStream();
+    const stopIdle = startIdleDetection();
+    return () => { stopHa(); stopIdle(); };
+  });
+
+  // ── Screensaver trigger ─────────────────────────────────────────────────────
+  // Show when: user idle AND at least one media_player is "playing"
+  let showScreensaver = $derived(
+    idleState.isIdle && musicState.active?.state === 'playing',
+  );
+
+  // Remember the section the user was on so we can return after dismissal
+  let sectionBeforeScreensaver = $state($page.url.pathname);
+  $effect(() => {
+    if (!showScreensaver) sectionBeforeScreensaver = $page.url.pathname;
+  });
 
   // ── Entity ID constants (shared with +page.svelte) ──────────────────────────
   const EID = {
@@ -136,6 +155,17 @@
 
   <BottomNav />
 </div>
+
+<!-- Music screensaver — fixed overlay above everything else (z-index 200) -->
+{#if showScreensaver && musicState.active}
+  <MusicScreensaver
+    player={musicState.active}
+    onClose={() => {
+      // Dismiss: reset idle timer by simulating user activity
+      window.dispatchEvent(new MouseEvent('mousemove'));
+    }}
+  />
+{/if}
 
 <style>
   .layout {

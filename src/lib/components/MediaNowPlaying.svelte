@@ -1,83 +1,97 @@
 <script lang="ts">
-  import { Music2, Play, Pause, SkipBack, SkipForward } from 'lucide-svelte';
-  import type { MediaPlayerState } from '$lib/data/placeholder.js';
+  /**
+   * Home-tab compact Now Playing tile.
+   *
+   * Shows the active media_player's artwork, title, artist, and a
+   * minimal play/pause control. Tapping anywhere navigates to /music
+   * for the full Music tab.
+   *
+   * Accepts a ResolvedPlayer (from musicState) or null.
+   */
+  import { goto }   from '$app/navigation';
+  import { Music2, Play, Pause } from 'lucide-svelte';
+  import type { ResolvedPlayer } from '$lib/music/playerResolution.js';
+  import { callHaService } from '$lib/stores/ha.svelte.js';
 
-  let { player }: { player: MediaPlayerState } = $props();
+  interface Props {
+    player: ResolvedPlayer | null;
+  }
+  let { player }: Props = $props();
 
-  let isPlaying = $derived(player.state === 'playing');
-  let hasMedia  = $derived(!!player.attributes.media_title);
+  let isPlaying = $derived(player?.state === 'playing');
+  let hasMedia  = $derived(!!(player?.media.title));
+
+  function mp(service: string) {
+    if (!player) return;
+    callHaService('media_player', service, { entity_id: player.controlId });
+  }
+
+  function handlePlayPause(e: MouseEvent) {
+    e.stopPropagation(); // don't navigate when tapping play/pause
+    mp(isPlaying ? 'media_pause' : 'media_play');
+  }
 </script>
 
-<div class="now-playing">
+<!-- Tapping the tile navigates to Music tab -->
+<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+<div class="now-playing" onclick={() => goto('/music')}>
   <!-- Section label -->
   <div class="section-label">
     <Music2 size={13} strokeWidth={2} />
     <span>Now Playing</span>
   </div>
 
-  <!-- Card: horizontal split — artwork left, controls right -->
+  <!-- Card -->
   <div class="card">
-    <!-- Left: artwork square, viewport-responsive -->
-    <div class="artwork">
-      {#if player.attributes.entity_picture}
-        <img src={player.attributes.entity_picture} alt="Album art" class="art-img" />
+    <!-- Artwork -->
+    <div class="artwork" class:paused={!isPlaying && hasMedia}>
+      {#if player?.media.artwork}
+        <img src={player.media.artwork} alt="Album art" class="art-img" />
       {:else}
         <div class="art-placeholder">
-          <Music2 size={44} strokeWidth={1.2} />
+          <Music2 strokeWidth={1.1} />
         </div>
       {/if}
     </div>
 
-    <!-- Right: track info + transport -->
+    <!-- Track info -->
     <div class="info">
       <div class="track">
         <p class="title" class:idle={!hasMedia}>
-          {hasMedia ? player.attributes.media_title : 'Nothing playing'}
+          {hasMedia ? (player!.media.title ?? '') : 'Nothing playing'}
         </p>
-        {#if hasMedia && player.attributes.media_artist}
-          <p class="artist">{player.attributes.media_artist}</p>
+        {#if hasMedia && player?.media.artist}
+          <p class="artist">{player.media.artist}</p>
         {:else}
-          <p class="artist idle-spacer" aria-hidden="true">&nbsp;</p>
+          <p class="artist idle-hint">
+            {hasMedia ? '' : 'Tap to open Music tab'}
+          </p>
         {/if}
       </div>
 
-      <!-- Progress bar -->
-      <div class="progress-track" style:opacity={hasMedia ? '1' : '0.3'}>
-        {#if hasMedia}
-          <div class="progress-fill" style:width="38%"></div>
+      <!-- Thin progress bar -->
+      <div class="progress-track" style:opacity={hasMedia ? '1' : '0.22'}>
+        {#if hasMedia && player?.media.duration && player.media.position != null}
+          {@const pct = Math.min(player.media.position / player.media.duration, 1) * 100}
+          <div class="progress-fill" style:width="{pct}%"></div>
+        {:else if hasMedia}
+          <div class="progress-fill" style:width="0%"></div>
         {/if}
       </div>
 
-      <!-- Transport: prev · play/pause · next -->
+      <!-- Play/Pause -->
       <div class="controls">
         <button
-          class="ctrl"
-          aria-label="Previous"
-          style:opacity={hasMedia ? '1' : '0.4'}
-          disabled={!hasMedia}
-        >
-          <SkipBack size={28} strokeWidth={1.6} />
-        </button>
-
-        <button
-          class="ctrl play-btn"
+          class="play-btn"
           aria-label={isPlaying ? 'Pause' : 'Play'}
-          style:opacity={hasMedia ? '1' : '0.4'}
+          style:opacity={hasMedia ? '1' : '0.35'}
+          onclick={handlePlayPause}
         >
           {#if isPlaying}
-            <Pause size={32} strokeWidth={1.4} />
+            <Pause size={28} strokeWidth={1.5} />
           {:else}
-            <Play size={32} strokeWidth={1.4} />
+            <Play size={28} strokeWidth={1.5} />
           {/if}
-        </button>
-
-        <button
-          class="ctrl"
-          aria-label="Next"
-          style:opacity={hasMedia ? '1' : '0.4'}
-          disabled={!hasMedia}
-        >
-          <SkipForward size={28} strokeWidth={1.6} />
         </button>
       </div>
     </div>
@@ -86,173 +100,93 @@
 
 <style>
   .now-playing {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
+    height: 100%; display: flex; flex-direction: column; gap: 0.35rem;
+    cursor: pointer;
   }
 
   .section-label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    color: var(--color-text-tertiary);
-    font-size: var(--type-label);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    display: flex; align-items: center; gap: 5px;
+    color: var(--color-text-tertiary); font-size: var(--type-label);
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
     padding: 0 0.2rem;
   }
 
-  /* ── Card ── */
   .card {
-    flex: 1;
-    min-height: 0;
+    flex: 1; min-height: 0;
     background: var(--color-surface-1);
-    border-radius: 28px;
-    border: 1px solid var(--color-border);
+    border-radius: 28px; border: 1px solid var(--color-border);
     box-shadow: inset 0 1px 0 var(--color-highlight);
     padding: 0.9rem 1.6rem;
-    display: flex;
-    align-items: center;
-    gap: 1.6rem;
+    display: flex; align-items: center; gap: 1.4rem;
+    transition: background 200ms;
   }
+  .card:active { background: var(--color-surface-2); }
 
-  /* ── Artwork: scales with viewport width ── */
+  /* Artwork */
   .artwork {
     flex-shrink: 0;
-    /* vw-based so it adapts at 1280 and 1440; square always */
-    width: clamp(100px, 15.28vw, 220px);
-    aspect-ratio: 1;
-    border-radius: 16px;
-    overflow: hidden;
+    width: clamp(80px, 10.4vw, 150px);
+    height: clamp(80px, 10.4vw, 150px);
+    border-radius: 14px; overflow: hidden;
     background: var(--color-surface-2);
+    transition: opacity 250ms ease, filter 250ms ease;
   }
+  .artwork.paused { opacity: 0.8; filter: saturate(0.6); }
 
-  .art-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
+  .art-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
   .art-placeholder {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-accent-music);
-    opacity: 0.35;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--color-accent-music); opacity: 0.3;
   }
+  .art-placeholder :global(svg) { width: 40%; height: 40%; }
 
-  /* ── Right column ── */
+  /* Info column */
   .info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0.6rem;
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; justify-content: center; gap: 0.5rem;
   }
 
-  .track {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    min-width: 0;
-  }
+  .track { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
 
-  /* Track title: 36-40px */
   .title {
-    font-size: clamp(26px, 2.78vw, 40px);
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: clamp(22px, 2.31vw, 34px);
+    font-weight: 600; color: var(--color-text-primary); margin: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  .title.idle { font-weight: 400; opacity: 0.55; }
 
-  .title.idle {
-    font-weight: 400;
-    opacity: 0.6;
-  }
-
-  /* Artist: 24-26px */
   .artist {
-    font-size: clamp(18px, 2.08vw, 30px);
-    font-weight: 400;
-    color: var(--color-text-secondary);
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    opacity: 0.75;
+    font-size: clamp(15px, 1.67vw, 24px);
+    font-weight: 400; color: var(--color-text-secondary);
+    margin: 0; opacity: 0.72;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
+  .artist.idle-hint { font-style: italic; opacity: 0.38; }
 
-  .artist.idle-spacer { opacity: 0; }
-
-  /* Progress bar: 6-8px height */
+  /* Progress bar */
   .progress-track {
-    width: 100%;
-    height: 7px;
-    background: var(--color-surface-2);
-    border-radius: 999px;
-    overflow: hidden;
+    width: 100%; height: 5px;
+    background: var(--color-surface-2); border-radius: 999px; overflow: hidden;
   }
-
   .progress-fill {
-    height: 100%;
-    background: var(--color-accent-music);
-    border-radius: 999px;
-    opacity: 0.85;
+    height: 100%; background: var(--color-accent-music); border-radius: 999px;
+    opacity: 0.8;
   }
 
-  /* Transport */
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-  }
+  /* Controls */
+  .controls { display: flex; align-items: center; }
 
-  /* Prev/Next: 52-56px */
-  .ctrl {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: clamp(44px, 3.89vw, 56px);
-    height: clamp(44px, 3.89vw, 56px);
-    border-radius: 50%;
-    border: none;
-    background: transparent;
-    color: var(--color-text-secondary);
-    cursor: pointer;
-    transition: background 200ms cubic-bezier(0.32, 0.72, 0, 1),
-                transform  150ms cubic-bezier(0.32, 0.72, 0, 1);
+  .play-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: clamp(56px, 5.56vw, 80px); height: clamp(56px, 5.56vw, 80px);
+    border-radius: 50%; border: none;
+    background: color-mix(in srgb, var(--color-accent-music) 15%, var(--color-surface-2));
+    border: 1px solid color-mix(in srgb, var(--color-accent-music) 28%, transparent);
+    color: var(--color-accent-music); cursor: pointer;
+    transition: transform 150ms cubic-bezier(0.32,0.72,0,1), background 150ms;
     -webkit-tap-highlight-color: transparent;
   }
-
-  .ctrl:active {
-    background: var(--color-surface-2);
-    transform: scale(0.9);
-  }
-
-  .ctrl:disabled {
-    cursor: default;
-    pointer-events: none;
-  }
-
-  /* Play/Pause: 84-96px */
-  .ctrl.play-btn {
-    width: clamp(72px, 6.67vw, 96px);
-    height: clamp(72px, 6.67vw, 96px);
-    background: color-mix(in srgb, var(--color-accent-music) 16%, var(--color-surface-2));
-    border: 1px solid color-mix(in srgb, var(--color-accent-music) 28%, transparent);
-    color: var(--color-accent-music);
-  }
-
-  .ctrl.play-btn:active {
-    background: color-mix(in srgb, var(--color-accent-music) 24%, var(--color-surface-2));
-    transform: scale(0.93);
-  }
+  .play-btn:active { transform: scale(0.91); }
 </style>

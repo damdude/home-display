@@ -1,20 +1,17 @@
 <script lang="ts">
-  import WeatherStrip        from '$lib/components/WeatherStrip.svelte';
-  import CalendarTile from '$lib/components/CalendarTile.svelte';
-  import ClimateSplit        from '$lib/components/ClimateSplit.svelte';
-  import QuickShortcuts      from '$lib/components/QuickShortcuts.svelte';
-  import MediaNowPlaying     from '$lib/components/MediaNowPlaying.svelte';
+  import WeatherStrip    from '$lib/components/WeatherStrip.svelte';
+  import CalendarTile    from '$lib/components/CalendarTile.svelte';
+  import ClimateSplit    from '$lib/components/ClimateSplit.svelte';
+  import QuickShortcuts  from '$lib/components/QuickShortcuts.svelte';
+  import MediaNowPlaying from '$lib/components/MediaNowPlaying.svelte';
 
   import { haStore, callHaService } from '$lib/stores/ha.svelte.js';
+  import { musicState }             from '$lib/stores/musicState.svelte.js';
 
   import {
     weatherForecastHome,
     climateLivingRoomThermostat,
-    mediaPlayerMaindoorSpeaker,
-    MUSIC_DEMO_PLAYING,
-    mediaPlayerDemoPlaying,
     type ClimateState,
-    type MediaPlayerState,
   } from '$lib/data/placeholder.js';
 
   // ── Entity ID constants ────────────────────────────────────────────────────
@@ -24,7 +21,6 @@
     humidity:    'sensor.living_room_thermostat_current_humidity',
     temperature: 'sensor.living_room_thermostat_current_temperature',
     lights:      'switch.outdoor_lights_outlet1',
-    media:       'media_player.maindoor_speaker',
   } as const;
 
   function entity(id: string) { return haStore.entities[id]; }
@@ -123,20 +119,8 @@
     callHaService('switch', 'toggle', { entity_id: EID.lights });
   }
 
-  // ── Media player ──────────────────────────────────────────────────────────────
-  let mediaEntity = $derived(entity(EID.media));
-  let mediaPlayer = $derived<MediaPlayerState>(
-    MUSIC_DEMO_PLAYING
-      ? mediaPlayerDemoPlaying
-      : {
-          state: mediaEntity?.state ?? mediaPlayerMaindoorSpeaker.state,
-          attributes: {
-            media_title:    mediaEntity?.attributes?.media_title    ?? null,
-            media_artist:   mediaEntity?.attributes?.media_artist   ?? null,
-            entity_picture: mediaEntity?.attributes?.entity_picture ?? null,
-          },
-        }
-  );
+  // ── Media player — live from musicState resolution layer ─────────────────────
+  let activePlayer = $derived(musicState.active);
 </script>
 
 <!-- Home section: weather / calendar / climate / shortcuts / media -->
@@ -166,7 +150,7 @@
   </section>
 
   <section class="zone zone-media">
-    <MediaNowPlaying player={mediaPlayer} />
+    <MediaNowPlaying player={activePlayer} />
   </section>
 </div>
 
