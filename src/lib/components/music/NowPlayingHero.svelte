@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Music2 } from 'lucide-svelte';
+  import { Music2, Airplay } from 'lucide-svelte';
   import SourceBadge    from './SourceBadge.svelte';
   import ProgressBar    from './ProgressBar.svelte';
   import VolumeControl  from './VolumeControl.svelte';
@@ -130,13 +130,7 @@
       onclick={() => castOpen = true}
       aria-label="Choose speaker"
     >
-      <span class="airplay-icon" aria-hidden="true">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 17L6.5 22H17.5L12 17Z" fill="currentColor"/>
-          <path d="M5 19.5C3.1 18.1 2 16.1 2 14C2 9.6 6.5 6 12 6C17.5 6 22 9.6 22 14C22 16.1 20.9 18.1 19 19.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-          <path d="M8 16.5C6.8 15.6 6 14.4 6 13C6 10.2 8.7 8 12 8C15.3 8 18 10.2 18 13C18 14.4 17.2 15.6 16 16.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-        </svg>
-      </span>
+      <Airplay size={22} strokeWidth={1.5} />
       <span class="speaker-name">{player?.name ?? 'No speaker'}</span>
       <span class="chevron" aria-hidden="true">▾</span>
     </button>
@@ -256,8 +250,4 @@
     border-color: color-mix(in srgb, var(--color-accent-music) 35%, transparent);
   }
 
-  .airplay-icon {
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
 </style>

@@ -10,7 +10,7 @@
    * Tapping the tile body → /music. Controls use stopPropagation.
    */
   import { goto }    from '$app/navigation';
-  import { Music2, SkipBack, SkipForward, Play, Pause } from 'lucide-svelte';
+  import { Music2, SkipBack, SkipForward, Play, Pause, Airplay } from 'lucide-svelte';
   import CastPicker  from '$lib/components/music/CastPicker.svelte';
   import type { ResolvedPlayer } from '$lib/music/playerResolution.js';
   import { callHaService } from '$lib/stores/ha.svelte.js';
@@ -187,17 +187,11 @@
           <SkipForward size={26} strokeWidth={1.5} />
         </button>
 
-        <!-- AirPlay / cast — inline SVG -->
+        <!-- AirPlay / cast -->
         <button class="ctrl airplay" class:open={castOpen}
           aria-label="Choose speaker"
           onclick={() => castOpen = true}>
-          <span class="airplay-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 17L6.5 22H17.5L12 17Z" fill="currentColor"/>
-              <path d="M5 19.5C3.1 18.1 2 16.1 2 14C2 9.6 6.5 6 12 6C17.5 6 22 9.6 22 14C22 16.1 20.9 18.1 19 19.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-              <path d="M8 16.5C6.8 15.6 6 14.4 6 13C6 10.2 8.7 8 12 8C15.3 8 18 10.2 18 13C18 14.4 17.2 15.6 16 16.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
-            </svg>
-          </span>
+          <Airplay size={22} strokeWidth={1.5} />
         </button>
       </div>
 
@@ -341,7 +335,4 @@
   .ctrl.airplay.open { opacity: 1; }
   .ctrl.airplay:active { opacity: 1; }
 
-  .airplay-icon {
-    display: flex; align-items: center; justify-content: center;
-  }
 </style>

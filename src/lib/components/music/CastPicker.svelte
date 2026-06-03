@@ -4,7 +4,7 @@
    * Centered on screen, not anchored to bottom edge.
    * Supports multi-speaker selection.
    */
-  import { scale, fade }  from 'svelte/transition';
+  import { fly, fade }    from 'svelte/transition';
   import { cubicOut }     from 'svelte/easing';
   import { Speaker, Tv2, Check, Music2, LayoutGrid } from 'lucide-svelte';
   import { musicState }    from '$lib/stores/musicState.svelte.js';
@@ -122,13 +122,13 @@
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="scrim" transition:fade={{ duration: 200 }} onclick={onClose}></div>
 
-  <!-- Floating card — centered -->
+  <!-- Floating card — slides up above bottom nav -->
   <div
     class="card"
     role="dialog"
     aria-label="Choose speaker"
     aria-modal="true"
-    transition:scale={{ start: 0.92, duration: 250, easing: cubicOut }}
+    transition:fly={{ y: 320, duration: 380, easing: cubicOut }}
   >
     <!-- Header: now-playing + Done -->
     <div class="header">
@@ -213,13 +213,14 @@
     background: rgba(0, 0, 0, 0.55);
   }
 
-  /* Floating centered card */
+  /* Floating card — slides up from bottom, sits above the bottom nav */
   .card {
     position: fixed;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    width: min(85vw, 480px);
-    max-height: 75vh;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(85vw, 500px);
+    max-height: 65vh;
     border-radius: 20px;
     z-index: 121;
     background: rgba(28, 28, 32, 0.97);
