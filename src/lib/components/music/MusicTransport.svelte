@@ -7,7 +7,7 @@
     caps:    PlayerCaps;
     shuffle: boolean;
     repeat:  'off' | 'one' | 'all';
-    large?:  boolean;  // screensaver uses bigger buttons
+    large?:  boolean;
     onPlay?:          () => void;
     onPause?:         () => void;
     onPrevious?:      () => void;
@@ -21,13 +21,11 @@
   }: Props = $props();
 
   let isPlaying = $derived(state === 'playing');
-
-  // Gap between controls scales with large flag
-  let gap = $derived(large ? 'clamp(24px, 3vw, 48px)' : 'clamp(14px, 1.8vw, 28px)');
 </script>
 
-<div class="transport" style:gap>
-  <!-- Shuffle — shown only if supported -->
+<div class="transport" class:large>
+
+  <!-- Shuffle -->
   {#if caps.canShuffle}
     <button
       class="side-btn"
@@ -35,37 +33,45 @@
       onclick={onShuffleToggle}
       aria-label="Toggle shuffle"
     >
-      <Shuffle />
+      <Shuffle size={large ? 28 : 22} strokeWidth={1.5} />
     </button>
   {:else}
-    <span class="side-spacer" aria-hidden="true"></span>
+    <span class="side-spacer"></span>
   {/if}
 
   <!-- Previous -->
   {#if caps.canPrevious}
     <button class="skip-btn" onclick={onPrevious} aria-label="Previous track">
-      <SkipBack />
+      <SkipBack size={large ? 42 : 32} strokeWidth={1.5} />
+    </button>
+  {:else}
+    <!-- Show greyed skip even when not supported — Apple always shows all 5 -->
+    <button class="skip-btn" disabled aria-label="Previous track">
+      <SkipBack size={large ? 42 : 32} strokeWidth={1.5} />
     </button>
   {/if}
 
-  <!-- Play / Pause — always shown, greyed when off -->
+  <!-- Play / Pause -->
   <button
     class="play-btn"
-    class:large
     onclick={isPlaying ? onPause : onPlay}
     aria-label={isPlaying ? 'Pause' : 'Play'}
   >
     {#if isPlaying}
-      <Pause />
+      <Pause size={large ? 44 : 52} strokeWidth={1.8} />
     {:else}
-      <Play />
+      <Play  size={large ? 44 : 52} strokeWidth={1.8} />
     {/if}
   </button>
 
   <!-- Next -->
   {#if caps.canNext}
     <button class="skip-btn" onclick={onNext} aria-label="Next track">
-      <SkipForward />
+      <SkipForward size={large ? 42 : 32} strokeWidth={1.5} />
+    </button>
+  {:else}
+    <button class="skip-btn" disabled aria-label="Next track">
+      <SkipForward size={large ? 42 : 32} strokeWidth={1.5} />
     </button>
   {/if}
 
@@ -78,67 +84,59 @@
       aria-label="Cycle repeat"
     >
       {#if repeat === 'one'}
-        <Repeat1 />
+        <Repeat1 size={large ? 28 : 22} strokeWidth={1.5} />
       {:else}
-        <Repeat />
+        <Repeat  size={large ? 28 : 22} strokeWidth={1.5} />
       {/if}
     </button>
   {:else}
-    <span class="side-spacer" aria-hidden="true"></span>
+    <span class="side-spacer"></span>
   {/if}
+
 </div>
 
 <style>
   .transport {
-    display: flex; align-items: center; justify-content: center; width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(20px, 4vw, 52px);
+    width: 100%;
   }
+  .large { gap: clamp(28px, 4.5vw, 56px); }
 
   /* Shuffle / Repeat */
-  .side-btn, .side-spacer {
-    width: clamp(28px, 2.4vw, 38px);
-    height: clamp(28px, 2.4vw, 38px);
-  }
   .side-btn {
     border: none; background: none; cursor: pointer; border-radius: 50%;
-    color: var(--color-text-tertiary); opacity: 0.5;
-    padding: 0; display: flex; align-items: center; justify-content: center;
-    transition: opacity 150ms, color 150ms;
+    color: var(--color-text-tertiary); opacity: 0.45;
+    padding: 6px;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 180ms, color 180ms;
     -webkit-tap-highlight-color: transparent;
   }
   .side-btn.active { color: var(--color-accent-music); opacity: 1; }
-  .side-btn :global(svg) { width: 100%; height: 100%; }
+  .side-btn:active { opacity: 0.7; }
 
-  /* Previous / Next */
+  .side-spacer { width: 34px; height: 34px; }
+
+  /* Skip buttons */
   .skip-btn {
-    width: clamp(44px, 3.6vw, 60px);
-    height: clamp(44px, 3.6vw, 60px);
     border: none; background: none; cursor: pointer; border-radius: 50%;
-    color: var(--color-text-secondary); padding: 0;
+    color: var(--color-text-primary); padding: 6px;
     display: flex; align-items: center; justify-content: center;
-    transition: transform 150ms cubic-bezier(0.32,0.72,0,1), background 150ms;
+    transition: transform 150ms cubic-bezier(0.32,0.72,0,1), opacity 150ms;
     -webkit-tap-highlight-color: transparent;
   }
-  .skip-btn :global(svg) { width: 55%; height: 55%; }
-  .skip-btn:active { transform: scale(0.88); background: var(--color-surface-2); }
+  .skip-btn:disabled { opacity: 0.28; cursor: default; pointer-events: none; }
+  .skip-btn:not(:disabled):active { transform: scale(0.86); }
 
-  /* Play / Pause circle */
+  /* Play / Pause — no circle, just the icon, slightly bigger */
   .play-btn {
-    width: clamp(76px, 6.4vw, 96px);
-    height: clamp(76px, 6.4vw, 96px);
-    border: none; border-radius: 50%;
-    background: var(--color-accent-music);
-    color: #fff; cursor: pointer; padding: 0;
+    border: none; background: none; cursor: pointer; border-radius: 50%;
+    color: var(--color-text-primary); padding: 4px;
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 4px 24px rgba(155,123,181,0.38);
-    transition: transform 150ms cubic-bezier(0.32,0.72,0,1), box-shadow 150ms;
+    transition: transform 150ms cubic-bezier(0.32,0.72,0,1), opacity 150ms;
     -webkit-tap-highlight-color: transparent;
   }
-  .play-btn :global(svg) { width: 38%; height: 38%; }
-  .play-btn:active { transform: scale(0.93); box-shadow: 0 2px 12px rgba(155,123,181,0.28); }
-
-  /* Large variant — screensaver */
-  .play-btn.large {
-    width: clamp(110px, 9.5vw, 140px);
-    height: clamp(110px, 9.5vw, 140px);
-  }
+  .play-btn:active { transform: scale(0.91); }
 </style>

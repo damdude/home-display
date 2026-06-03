@@ -40,9 +40,10 @@
 </script>
 
 {#if source}
-  <span class="badge" style:color={source.color} style:background={source.bg}>
-    {source.label}
-  </span>
+  <span
+    class="badge"
+    style="--badge-color:{source.color};--badge-bg:{source.bg}"
+  >{source.label}</span>
 {/if}
 
 <style>
@@ -55,5 +56,8 @@
     letter-spacing: 0.025em;
     white-space: nowrap;
     line-height: 1.6;
+    /* Use CSS vars so parent can override via :global if needed */
+    color:      var(--badge-color);
+    background: var(--badge-bg);
   }
 </style>
