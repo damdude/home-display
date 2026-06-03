@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Music2, MoreHorizontal, Subtitles, Cast, ListMusic } from 'lucide-svelte';
+  import { Music2, MoreHorizontal, Subtitles, Airplay, ListMusic } from 'lucide-svelte';
   import ProgressBar    from '$lib/components/music/ProgressBar.svelte';
   import VolumeControl  from '$lib/components/music/VolumeControl.svelte';
   import MusicTransport from '$lib/components/music/MusicTransport.svelte';
@@ -9,7 +9,8 @@
   import { musicState }    from '$lib/stores/musicState.svelte.js';
   import { callHaService } from '$lib/stores/ha.svelte.js';
 
-  let player = $derived(musicState.active);
+  let player   = $derived(musicState.active);
+  let castOpen = $state(false);
 
   // Helpers — fire-and-forget service calls on the active speaker's control entity
   function mp(service: string, extra: Record<string, unknown> = {}) {
@@ -152,14 +153,14 @@
         <Subtitles size={22} strokeWidth={1.5} />
       </button>
 
-      <!-- Cast / AirPlay picker -->
+      <!-- AirPlay / cast picker -->
       <button
         class="util-btn cast-btn"
-        class:open={musicState.castPickerOpen}
+        class:open={castOpen}
         aria-label="Choose speaker"
-        onclick={() => musicState.openCastPicker()}
+        onclick={() => castOpen = true}
       >
-        <Cast size={22} strokeWidth={1.5} />
+        <Airplay size={22} strokeWidth={1.5} />
       </button>
 
       <!-- Queue -->
@@ -178,7 +179,7 @@
 </div>
 
 <!-- Cast picker sheet (fixed overlay) -->
-<CastPicker />
+<CastPicker open={castOpen} onClose={() => castOpen = false} />
 
 <style>
   /* ── Full page grid — 7 rows, no scroll ── */
@@ -342,7 +343,9 @@
     -webkit-tap-highlight-color: transparent;
   }
   .util-btn:active { opacity: 0.9; }
-  .cast-btn.open { color: var(--color-accent-music); opacity: 1; }
+  /* Airplay always tinted; dimmer when picker closed */
+  .cast-btn        { color: var(--color-accent-music); opacity: 0.7; }
+  .cast-btn.open   { opacity: 1; }
 
   /* ── 7. Quick start ── */
   .zone-quick { justify-content: flex-start; gap: 6px; }

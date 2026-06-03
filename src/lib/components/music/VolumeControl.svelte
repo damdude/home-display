@@ -48,6 +48,7 @@
       class="slider"
       type="range" min="0" max="1" step="0.02"
       value={dispVol}
+      style="--fill-pct: {dispVol * 100}%"
       oninput={handleSlider}
       aria-label="Volume"
     />
@@ -80,20 +81,29 @@
   .mute-btn:not(:disabled):active { opacity: 1; }
 
   .slider {
-    flex: 1; height: 4px; cursor: pointer;
-    accent-color: var(--color-accent-music);
-    -webkit-appearance: none;
-    appearance: none;
-    background: var(--color-surface-2);
-    border-radius: 999px;
-    outline: none;
+    flex: 1; height: 6px; cursor: pointer;
+    -webkit-appearance: none; appearance: none;
+    border-radius: 999px; outline: none;
+    /* Two-tone: filled left in accent-music, unfilled right in surface-2 */
+    background: linear-gradient(
+      to right,
+      var(--color-accent-music) 0%,
+      var(--color-accent-music) var(--fill-pct, 50%),
+      var(--color-surface-2)   var(--fill-pct, 50%),
+      var(--color-surface-2)   100%
+    );
   }
   .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 16px; height: 16px; border-radius: 50%;
     background: var(--color-accent-music);
     cursor: pointer;
-    box-shadow: 0 0 0 2px rgba(155,123,181,0.25);
+    box-shadow: 0 0 0 2px rgba(155, 123, 181, 0.28);
+  }
+  .slider::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%; border: none;
+    background: var(--color-accent-music);
+    cursor: pointer;
   }
 
   .step {

@@ -1,12 +1,14 @@
 <script lang="ts">
-  import { Music2, Cast } from 'lucide-svelte';
+  import { Music2, Airplay } from 'lucide-svelte';
   import SourceBadge    from './SourceBadge.svelte';
   import ProgressBar    from './ProgressBar.svelte';
   import VolumeControl  from './VolumeControl.svelte';
   import MusicTransport from './MusicTransport.svelte';
+  import CastPicker     from './CastPicker.svelte';
   import type { ResolvedPlayer } from '$lib/music/playerResolution.js';
   import { callHaService } from '$lib/stores/ha.svelte.js';
-  import { musicState }   from '$lib/stores/musicState.svelte.js';
+
+  let castOpen = $state(false);
 
   interface Props {
     player: ResolvedPlayer | null;
@@ -124,16 +126,19 @@
     <!-- Speaker selector -->
     <button
       class="speaker-btn"
-      onclick={() => musicState.openCastPicker()}
+      class:picker-open={castOpen}
+      onclick={() => castOpen = true}
       aria-label="Choose speaker"
     >
-      <Cast size={15} strokeWidth={1.8} />
+      <Airplay size={15} strokeWidth={1.8} />
       <span class="speaker-name">{player?.name ?? 'No speaker'}</span>
       <span class="chevron" aria-hidden="true">▾</span>
     </button>
 
   </div>
 </div>
+
+<CastPicker open={castOpen} onClose={() => castOpen = false} />
 
 <style>
   .hero {
@@ -239,4 +244,9 @@
   }
 
   .chevron { font-size: 10px; opacity: 0.6; }
+
+  .speaker-btn.picker-open {
+    color: var(--color-accent-music);
+    border-color: color-mix(in srgb, var(--color-accent-music) 35%, transparent);
+  }
 </style>
