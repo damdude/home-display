@@ -1,15 +1,12 @@
 <script lang="ts">
   /**
-   * Shared Apple-style cast picker bottom sheet.
-   * Used by both MediaNowPlaying (Home tab) and music/+page.svelte (Music tab).
-   *
-   * Props:
-   *   open    — whether the sheet is visible
-   *   onClose — called when scrim tapped, drag-down, or X button pressed
+   * Floating cast/AirPlay picker card.
+   * Centered on screen, not anchored to bottom edge.
+   * Supports multi-speaker selection.
    */
-  import { fly, fade }   from 'svelte/transition';
-  import { cubicOut }    from 'svelte/easing';
-  import { Speaker, Tv2, Check, Music2 } from 'lucide-svelte';
+  import { scale, fade }  from 'svelte/transition';
+  import { cubicOut }     from 'svelte/easing';
+  import { Speaker, Tv2, Check, Music2, LayoutGrid } from 'lucide-svelte';
   import { musicState }    from '$lib/stores/musicState.svelte.js';
   import { callHaService } from '$lib/stores/ha.svelte.js';
   import type { ResolvedPlayer } from '$lib/music/playerResolution.js';
@@ -21,40 +18,34 @@
   let { open, onClose }: Props = $props();
 
   // ── Speaker allowlist — shown in this exact order ─────────────────────────
-  // Update keys when MA entities solidify after install (_2 suffix = MA-managed).
-  // Fallback keys (without _2) keep the picker usable before MA is installed.
   const ALLOWLIST: Array<{ id: string; label: string; icon: typeof Speaker }> = [
     { id: 'media_player.maindoor_speaker_2', label: 'Maindoor Speaker', icon: Speaker },
     { id: 'media_player.second_speaker_2',   label: 'Second Speaker',   icon: Speaker },
     { id: 'media_player.bbox',               label: 'Apple TV',         icon: Tv2     },
-    // Fallbacks — used before MA install:
+    // Pre-MA fallbacks
     { id: 'media_player.maindoor_speaker',   label: 'Maindoor Speaker', icon: Speaker },
     { id: 'media_player.second_speaker',     label: 'Second Speaker',   icon: Speaker },
   ];
 
-  const MAX_VISIBLE = 4; // "Show More" appears beyond this threshold
+  const ALL_IDS = ['media_player.maindoor_speaker_2', 'media_player.second_speaker_2', 'media_player.bbox'];
+  const MAX_VISIBLE = 4;
 
   let showAll = $state(false);
 
-  // Resolve each allowlist entry against live player data, deduplicating by label
+  // Deduplicated speaker list matched against live players
   let speakers = $derived.by(() => {
     const allPlayers = musicState.players;
     const seen = new Set<string>();
-    const result: Array<{
-      entry: typeof ALLOWLIST[0];
-      player: ResolvedPlayer | undefined;
-    }> = [];
+    const result: Array<{ entry: typeof ALLOWLIST[0]; player: ResolvedPlayer | undefined }> = [];
 
     for (const entry of ALLOWLIST) {
-      if (seen.has(entry.label)) continue; // prefer higher-priority (_2) entry
+      if (seen.has(entry.label)) continue;
       const player = allPlayers.find(p => p.controlId === entry.id);
       if (player || allPlayers.length === 0) {
         seen.add(entry.label);
         result.push({ entry, player });
       }
     }
-
-    // If nothing matched allowlist at all, fall back to all players
     if (!result.length) {
       return allPlayers.map(p => ({
         entry: { id: p.controlId, label: p.name, icon: Speaker as typeof Speaker },
@@ -64,73 +55,104 @@
     return result;
   });
 
-  let visible = $derived(showAll ? speakers : speakers.slice(0, MAX_VISIBLE));
+  let visible  = $derived(showAll ? speakers : speakers.slice(0, MAX_VISIBLE));
   let overflow = $derived(speakers.length - MAX_VISIBLE);
+
+  // ── Multi-select state ────────────────────────────────────────────────────
+  let selectedIds = $state(new Set<string>([musicState.active?.controlId ?? '']));
+
+  // Sync initial selection when picker opens
+  $effect(() => {
+    if (open) selectedIds = new Set([musicState.active?.controlId ?? '']);
+  });
+
+  function toggleSpeaker(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      if (next.size > 1) next.delete(id); // can't deselect the last one
+    } else {
+      next.add(id);
+    }
+    selectedIds = next;
+    applySelection();
+  }
+
+  function applySelection() {
+    const ids = [...selectedIds].filter(Boolean);
+    if (!ids.length) return;
+    if (ids.length === 1) {
+      callHaService('media_player', 'media_play', { entity_id: ids[0] });
+      musicState.setActive(ids[0]);
+    } else {
+      callHaService('media_player', 'join', {
+        entity_id:      ids[0],
+        group_members:  ids.slice(1),
+      });
+      musicState.setActive(ids[0]);
+    }
+  }
+
+  function selectAll() {
+    // Use whichever IDs actually exist in the current player list
+    const existingIds = speakers.map(s => s.entry.id);
+    // Also include ALL_IDS as desired targets even if not yet resolved
+    const combined = [...new Set([...existingIds, ...ALL_IDS])];
+    selectedIds = new Set(combined);
+    applySelection();
+  }
 
   let active = $derived(musicState.active);
 
-  function select(controlId: string) {
-    callHaService('media_player', 'media_play', { entity_id: controlId });
-    musicState.setActive(controlId);
-    onClose();
+  function volPct(p: ResolvedPlayer | undefined): number {
+    if (!p || p.state === 'off' || p.state === 'unavailable') return 0;
+    return (p.media.volume ?? 0) * 100;
   }
 
   function volText(p: ResolvedPlayer | undefined): string {
-    if (!p) return '';
-    if (p.state === 'off')    return 'Off';
-    if (p.state === 'idle')   return 'Idle';
-    if (p.media.volume != null) return `${Math.round(p.media.volume * 100)}%`;
+    if (!p || p.state === 'off')          return 'Off';
+    if (p.state === 'unavailable')        return 'Unavailable';
+    if (p.state === 'idle')               return 'Idle';
+    if (p.media.volume != null)           return `${Math.round(p.media.volume * 100)}%`;
     return '';
-  }
-
-  function isActive(id: string): boolean {
-    return active?.controlId === id;
   }
 </script>
 
 {#if open}
   <!-- Scrim -->
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div
-    class="scrim"
-    transition:fade={{ duration: 220 }}
-    onclick={onClose}
-  ></div>
+  <div class="scrim" transition:fade={{ duration: 200 }} onclick={onClose}></div>
 
-  <!-- Sheet -->
+  <!-- Floating card — centered -->
   <div
-    class="sheet"
+    class="card"
     role="dialog"
-    aria-label="Play on"
+    aria-label="Choose speaker"
     aria-modal="true"
-    transition:fly={{ y: 400, duration: 380, easing: cubicOut }}
+    transition:scale={{ start: 0.92, duration: 250, easing: cubicOut }}
   >
-    <!-- Drag handle -->
-    <div class="handle" aria-hidden="true"></div>
-
-    <!-- Mini now-playing header -->
-    <div class="np-row">
-      {#if active?.media.title}
-        <div class="np-art">
-          {#if active.media.artwork}
-            <img src={active.media.artwork} alt="" class="np-art-img" />
-          {:else}
-            <div class="np-art-ph"><Music2 size={22} strokeWidth={1.3} /></div>
-          {/if}
-        </div>
-        <div class="np-text">
-          <p class="np-title">{active.media.title}</p>
-          {#if active.media.artist}
-            <p class="np-artist">{active.media.artist}</p>
-          {/if}
-        </div>
-        <!-- Source badge pill inline -->
-        {#if active.media.appName}
-          <span class="np-source">{active.media.appName}</span>
+    <!-- Header: now-playing + Done -->
+    <div class="header">
+      <div class="np-row">
+        {#if active?.media.title}
+          <div class="np-art">
+            {#if active.media.artwork}
+              <img src={active.media.artwork} alt="" class="np-art-img" />
+            {:else}
+              <div class="np-art-ph"><Music2 size={20} strokeWidth={1.3} /></div>
+            {/if}
+          </div>
+          <div class="np-text">
+            <p class="np-title">{active.media.title}</p>
+            {#if active.media.artist}
+              <p class="np-artist">{active.media.artist}</p>
+            {/if}
+          </div>
+        {:else}
+          <p class="np-idle">No active playback</p>
         {/if}
-      {:else}
-        <p class="np-idle">No active playback</p>
-      {/if}
+      </div>
+
+      <button class="done-btn" onclick={onClose} aria-label="Done">Done</button>
     </div>
 
     <div class="divider"></div>
@@ -140,25 +162,30 @@
 
     <!-- Speaker rows -->
     <div class="speaker-list">
-      {#each visible as { entry, player } (entry.id)}
-        {@const active_ = isActive(entry.id)}
+      {#each visible as { entry, player: sp } (entry.id)}
+        {@const isSelected = selectedIds.has(entry.id)}
+        {@const fillPct    = volPct(sp)}
+
         <button
           class="speaker-row"
-          class:active={active_}
-          onclick={() => select(entry.id)}
-          aria-pressed={active_}
+          class:selected={isSelected}
+          onclick={() => toggleSpeaker(entry.id)}
+          aria-pressed={isSelected}
           aria-label={entry.label}
         >
+          <!-- Volume fill bar — behind content -->
+          <div class="vol-fill" style:width="{fillPct}%"></div>
+
           <span class="sp-icon">
             <entry.icon size={20} strokeWidth={1.5} />
           </span>
           <span class="sp-body">
             <span class="sp-name">{entry.label}</span>
-            {#if volText(player)}
-              <span class="sp-sub">{volText(player)}</span>
+            {#if volText(sp)}
+              <span class="sp-sub">{volText(sp)}</span>
             {/if}
           </span>
-          {#if active_}
+          {#if isSelected}
             <Check size={18} strokeWidth={2.5} color="var(--color-accent-music)" />
           {/if}
         </button>
@@ -166,13 +193,17 @@
 
       {#if !showAll && overflow > 0}
         <button class="show-more" onclick={() => showAll = true}>
-          Show {overflow} more
+          Show {overflow} more…
         </button>
       {/if}
-    </div>
 
-    <!-- Safe-area bottom spacer -->
-    <div class="safe-bottom"></div>
+      <!-- All Speakers & TVs -->
+      <div class="all-divider"></div>
+      <button class="all-btn" onclick={selectAll} aria-label="Select all speakers">
+        <span class="all-icon"><LayoutGrid size={18} strokeWidth={1.5} /></span>
+        <span>All Speakers &amp; TVs</span>
+      </button>
+    </div>
   </div>
 {/if}
 
@@ -182,41 +213,39 @@
     background: rgba(0, 0, 0, 0.55);
   }
 
-  /* Apple frosted-glass bottom sheet */
-  .sheet {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 121;
+  /* Floating centered card */
+  .card {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(85vw, 480px);
+    max-height: 75vh;
+    border-radius: 20px;
+    z-index: 121;
     background: rgba(28, 28, 32, 0.97);
     backdrop-filter: blur(40px);
     -webkit-backdrop-filter: blur(40px);
-    border-radius: 20px 20px 0 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.07);
-    padding: 8px 5vw 0;
-    max-height: 70vh;
-    display: flex; flex-direction: column;
-    box-shadow: 0 -4px 40px rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 16px 0;
   }
 
-  /* Handle pill */
-  .handle {
-    width: 40px; height: 4px;
-    background: var(--color-border);
-    border-radius: 999px;
-    margin: 0 auto 16px;
-    flex-shrink: 0;
+  /* ── Header ── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-shrink: 0; padding-bottom: 14px;
   }
 
-  /* Mini now-playing row */
   .np-row {
-    display: flex; align-items: center; gap: 12px;
-    padding-bottom: 14px; flex-shrink: 0;
-    min-height: 56px;
+    display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
   }
 
   .np-art {
-    width: 48px; height: 48px; border-radius: 10px;
-    overflow: hidden; background: var(--color-surface-2);
-    flex-shrink: 0;
+    width: 44px; height: 44px; border-radius: 8px;
+    overflow: hidden; background: var(--color-surface-2); flex-shrink: 0;
   }
   .np-art-img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .np-art-ph {
@@ -225,81 +254,118 @@
     color: var(--color-accent-music); opacity: 0.35;
   }
 
-  .np-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .np-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .np-title {
-    font-size: clamp(14px, 1.3vw, 18px); font-weight: 600;
+    font-size: clamp(13px, 1.2vw, 17px); font-weight: 600;
     color: var(--color-text-primary); margin: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .np-artist {
-    font-size: clamp(12px, 1.04vw, 15px); color: var(--color-text-tertiary);
-    margin: 0; opacity: 0.75;
+    font-size: clamp(11px, 1vw, 14px); color: var(--color-text-tertiary);
+    margin: 0; opacity: 0.72;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .np-idle {
-    flex: 1; font-size: clamp(13px, 1.11vw, 16px);
+    flex: 1; font-size: clamp(13px, 1.1vw, 16px);
     color: var(--color-text-tertiary); margin: 0;
     font-style: italic; text-align: center;
   }
-  .np-source {
-    font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
-    padding: 2px 8px; border-radius: 999px;
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.7);
-    flex-shrink: 0; white-space: nowrap;
+
+  .done-btn {
+    border: none; background: none; cursor: pointer; flex-shrink: 0;
+    font-size: clamp(14px, 1.25vw, 17px); font-weight: 600;
+    color: var(--color-accent-music); padding: 4px 8px;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0 0 10px; flex-shrink: 0; }
+  .divider { height: 1px; background: rgba(255,255,255,0.07); margin: 0 -16px; flex-shrink: 0; }
 
   .section-label {
     font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--color-text-tertiary);
-    opacity: 0.65; margin: 0 0 8px; flex-shrink: 0;
+    opacity: 0.6; margin: 12px 0 6px; flex-shrink: 0;
   }
 
-  /* Speaker list */
+  /* ── Speaker list ── */
   .speaker-list {
-    display: flex; flex-direction: column; gap: 3px;
+    display: flex; flex-direction: column; gap: 2px;
     overflow-y: auto; scrollbar-width: none;
     flex: 1;
+    padding-bottom: 12px;
   }
   .speaker-list::-webkit-scrollbar { display: none; }
 
+  /* Speaker row — relative for vol-fill positioning */
   .speaker-row {
+    position: relative; overflow: hidden;
     display: flex; align-items: center; gap: 12px;
-    padding: 14px 16px; border-radius: 14px;
+    padding: 14px 12px; border-radius: 14px;
     background: transparent; border: none; cursor: pointer;
     text-align: left; width: 100%;
     transition: background 140ms;
     -webkit-tap-highlight-color: transparent;
   }
-  .speaker-row.active { background: var(--color-surface-2); }
-  .speaker-row:not(.active):active { background: var(--color-surface-1); }
+  .speaker-row.selected { background: rgba(255,255,255,0.05); }
+  .speaker-row:not(.selected):active { background: rgba(255,255,255,0.03); }
 
-  .sp-icon { color: var(--color-text-secondary); flex-shrink: 0; display: flex; align-items: center; }
-  .speaker-row.active .sp-icon { color: var(--color-accent-music); }
+  /* Volume fill bar — absolute behind content */
+  .vol-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: color-mix(in srgb, var(--color-accent-music) 18%, transparent);
+    border-radius: inherit;
+    pointer-events: none;
+    transition: width 600ms ease;
+  }
 
-  .sp-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .sp-icon {
+    color: var(--color-text-secondary); flex-shrink: 0;
+    display: flex; align-items: center; position: relative;
+  }
+  .speaker-row.selected .sp-icon { color: var(--color-accent-music); }
+
+  .sp-body {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 2px;
+    position: relative; /* above vol-fill */
+  }
   .sp-name {
     font-size: clamp(15px, 1.39vw, 19px); font-weight: 600;
     color: var(--color-text-primary);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .sp-sub {
-    font-size: clamp(12px, 1.04vw, 15px); color: var(--color-text-tertiary); opacity: 0.7;
+    font-size: clamp(11px, 1vw, 14px); color: var(--color-text-tertiary); opacity: 0.7;
   }
+
+  /* Check icon — above vol-fill */
+  .speaker-row :global(svg[data-lucide]) { position: relative; }
 
   .show-more {
     border: none; background: none; cursor: pointer;
-    font-size: clamp(13px, 1.11vw, 16px);
+    font-size: clamp(13px, 1.1vw, 15px);
     color: var(--color-accent-music); opacity: 0.8;
-    padding: 10px 16px; text-align: left;
+    padding: 8px 12px; text-align: left;
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Bottom safe area */
-  .safe-bottom {
-    height: max(env(safe-area-inset-bottom, 0px), 16px);
+  /* All Speakers divider + button */
+  .all-divider {
+    height: 1px; background: rgba(255,255,255,0.07);
+    margin: 4px -16px 2px;
     flex-shrink: 0;
   }
+
+  .all-btn {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 12px; border-radius: 14px;
+    border: none; background: transparent; cursor: pointer;
+    color: var(--color-accent-music);
+    font-size: clamp(14px, 1.3vw, 18px); font-weight: 500;
+    width: 100%; text-align: left;
+    transition: background 140ms;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .all-btn:active { background: rgba(255,255,255,0.04); }
+
+  .all-icon { display: flex; align-items: center; }
 </style>
