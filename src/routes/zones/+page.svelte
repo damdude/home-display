@@ -1,7 +1,19 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { page }    from '$app/stores';
   import { LayoutGrid, Home, Building2, HelpCircle } from 'lucide-svelte';
   import { zonesStore } from '$lib/stores/zonesStore.svelte.js';
   import ZoneCard from '$lib/components/zones/ZoneCard.svelte';
+
+  let unassignedRef = $state<HTMLElement | null>(null);
+
+  onMount(() => {
+    if ($page.url.searchParams.get('section') === 'unassigned') {
+      setTimeout(() => {
+        unassignedRef?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300); // wait for page transition to settle
+    }
+  });
 
   const FLOOR_ICONS: Record<string, typeof Home> = {
     ground_floor: Home,
@@ -54,7 +66,7 @@
 
       <!-- Unassigned devices (if any) -->
       {#if zonesStore.unassigned}
-        <div class="floor-section">
+        <div class="floor-section" bind:this={unassignedRef}>
           <div class="floor-header">
             <span class="floor-icon"><HelpCircle size={14} strokeWidth={2} /></span>
             <span class="floor-label">UNASSIGNED</span>

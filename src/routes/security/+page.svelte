@@ -29,6 +29,7 @@
     { entityId: 'camera.driveway',    name: 'Driveway'    },
     { entityId: 'camera.side_door',   name: 'Side Door'   },
     { entityId: 'camera.garage',      name: 'Garage'      },
+    { entityId: 'camera.back_door',   name: 'Back Door'   },
   ];
 
   const DOOR_IDS: { entityId: string; label: string }[] = [

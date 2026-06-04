@@ -11,6 +11,7 @@ import { browser } from '$app/environment';
 
 export interface ZoneEntity {
   entity_id: string;
+  device_id: string | null;
   domain:    string;
   name:      string;
 }
@@ -73,6 +74,25 @@ export const zonesStore = {
     return u && u.entities.length > 0 ? u : null;
   },
 };
+
+// ── Device assignment ──────────────────────────────────────────────────────────
+
+/**
+ * Assign (or unassign) a device to an area via the server API.
+ * Pass areaId=null or areaId='' to remove the assignment.
+ * The SSE stream will push the updated registry automatically after the server refreshes.
+ */
+export async function assignDevice(deviceId: string, areaId: string | null): Promise<void> {
+  const res = await fetch('/api/zones/assign', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ deviceId, areaId: areaId || null }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`Assignment failed: ${text}`);
+  }
+}
 
 // ── SSE stream ────────────────────────────────────────────────────────────────
 

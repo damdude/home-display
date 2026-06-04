@@ -9,6 +9,8 @@
   import { haStore, callHaService } from '$lib/stores/ha.svelte.js';
   import { musicState }              from '$lib/stores/musicState.svelte.js';
   import CameraOverlay               from './CameraOverlay.svelte';
+  import AssignDeviceSheet           from './AssignDeviceSheet.svelte';
+  import { assignDevice }            from '$lib/stores/zonesStore.svelte.js';
   import type { ZoneData }           from '$lib/stores/zonesStore.svelte.js';
 
   interface Props { zone: ZoneData; }
@@ -279,6 +281,35 @@
 
     return pills;
   });
+
+  // ── Assign device sheet (unassigned zone only) ────────────────────────────
+  let assigningEntityId: string | null = $state(null);
+  let assigningDeviceId: string | null = $state(null);
+  let assignSheetOpen   = $state(false);
+  let assigning         = $state(false);
+
+  function openAssignSheet(entityId: string, deviceId: string | null) {
+    assigningEntityId = entityId;
+    assigningDeviceId = deviceId;
+    assignSheetOpen   = true;
+  }
+
+  async function doAssign(areaId: string | null) {
+    if (!assigningDeviceId) return;
+    assigning = true;
+    try {
+      await assignDevice(assigningDeviceId, areaId);
+      assignSheetOpen   = false;
+      assigningEntityId = null;
+      assigningDeviceId = null;
+    } catch (e) {
+      console.error('[ZoneCard] Assignment failed:', e);
+    } finally {
+      assigning = false;
+    }
+  }
+
+  let isUnassigned = $derived(zone.areaId === '__unassigned__');
 </script>
 
 <!-- Camera overlay (fixed, outside card layout) -->
@@ -289,6 +320,15 @@
     onClose={() => { cameraOverlayOpen = false; selectedCamera = null; }}
   />
 {/if}
+
+<!-- Assign device sheet (unassigned zone) -->
+<AssignDeviceSheet
+  open={assignSheetOpen}
+  entityId={assigningEntityId}
+  {assigning}
+  onAssign={doAssign}
+  onClose={() => { assignSheetOpen = false; }}
+/>
 
 <div class="zone-card">
   <!-- ── Header ──────────────────────────────────────────────────────────── -->
@@ -309,6 +349,23 @@
   <!-- ── Chip rows ──────────────────────────────────────────────────────── -->
   {#if hasChips}
     <div class="chip-body">
+
+      <!-- Unassigned zone: flat chip list — each chip opens the assign sheet -->
+      {#if isUnassigned}
+        <div class="chip-row">
+          {#each visible as ent (ent.entity_id)}
+            <button
+              class="chip assign-chip"
+              onclick={() => openAssignSheet(ent.entity_id, ent.device_id)}
+              title="Tap to assign to a room"
+            >
+              <HelpCircle size={14} strokeWidth={1.8} />
+              <span class="chip-label">{ent.name}</span>
+              <span class="chip-sub assign-hint">Assign</span>
+            </button>
+          {/each}
+        </div>
+      {:else}
 
       <!-- Climate chips -->
       {#if climateEnts.length > 0}
@@ -480,6 +537,8 @@
         </div>
       {/if}
 
+      {/if}<!-- end {:else} for non-unassigned zone -->
+
     </div>
   {/if}
 </div>
@@ -565,6 +624,19 @@
   }
 
   .sensor-chip { cursor: default; opacity: 0.7; }
+
+  .assign-chip {
+    border-color: color-mix(in srgb, var(--color-accent-alert) 30%, transparent);
+    color: var(--color-text-primary);
+  }
+  .assign-chip:active { background: var(--color-surface-3, #2c2c32); }
+
+  .assign-hint {
+    color: var(--color-accent-alert);
+    font-size: 0.82em;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
 
   .chip-label { overflow: hidden; text-overflow: ellipsis; }
 

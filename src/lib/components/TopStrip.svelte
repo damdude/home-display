@@ -1,16 +1,21 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { Sun, Moon, Bell } from 'lucide-svelte';
+  import { goto } from '$app/navigation';
+  import { zonesStore } from '$lib/stores/zonesStore.svelte.js';
 
   // ── Props ────────────────────────────────────────────────────────────────────
   let {
     haConnected = true,
     hasNotification = false,
+    locationLabel = '',
   }: {
     /** False while HA WebSocket is reconnecting; shows indicator on bell. */
     haConnected?: boolean;
     /** True to show an accent dot on the bell icon (Phase 7+). */
     hasNotification?: boolean;
+    /** Optional room/location prefix for the greeting, e.g. "Master Bathroom". */
+    locationLabel?: string;
   } = $props();
 
   // ── Clock + greeting ──────────────────────────────────────────────────────────
@@ -24,9 +29,10 @@
     const m   = now.getMinutes().toString().padStart(2, '0');
     const h12 = h % 12 || 12;
     timeStr = `${h12}:${m}`;
-    if      (h < 12) greeting = 'Good morning, Rahul';
-    else if (h < 17) greeting = 'Good afternoon, Rahul';
-    else             greeting = 'Good evening, Rahul';
+    const prefix = locationLabel ? locationLabel + ' · ' : '';
+    if      (h < 12) greeting = prefix + 'Good morning';
+    else if (h < 17) greeting = prefix + 'Good afternoon';
+    else             greeting = prefix + 'Good evening';
   }
 
   onMount(() => {
@@ -34,6 +40,11 @@
     interval = setInterval(updateClock, 1000);
   });
   onDestroy(() => clearInterval(interval));
+
+  // ── Notification badge ────────────────────────────────────────────────────────
+  let unassignedCount = $derived(
+    zonesStore.unassigned?.entities.length ?? 0
+  );
 
   // ── Theme toggle ──────────────────────────────────────────────────────────────
   let theme = $state<'dark' | 'light'>('dark');
@@ -59,21 +70,25 @@
 
   <!-- Right: bell + theme toggle -->
   <div class="actions">
-    <!-- Bell: inert this phase; dot when hasNotification; pulse when reconnecting -->
-    <div
-      class="bell-wrap"
+    <!-- Bell: navigates to /zones?section=unassigned when unassigned devices exist -->
+    <button
+      class="bell-btn"
       class:reconnecting={!haConnected}
-      aria-label={!haConnected ? 'Reconnecting to Home Assistant…' : 'Notifications'}
-      title={!haConnected ? 'Reconnecting…' : undefined}
+      class:has-badge={unassignedCount > 0}
+      aria-label={!haConnected ? 'Reconnecting to Home Assistant…' : (unassignedCount > 0 ? `${unassignedCount} unassigned device${unassignedCount !== 1 ? 's' : ''}` : 'Notifications')}
+      onclick={() => {
+        if (unassignedCount > 0) void goto('/zones?section=unassigned');
+      }}
     >
       <Bell size={20} strokeWidth={1.6} />
-      {#if hasNotification || !haConnected}
-        <span
-          class="bell-dot"
-          class:reconnect-dot={!haConnected}
-        ></span>
+      {#if !haConnected}
+        <span class="bell-dot reconnect-dot"></span>
+      {:else if unassignedCount > 0}
+        <span class="badge">{unassignedCount > 9 ? '9+' : unassignedCount}</span>
+      {:else if hasNotification}
+        <span class="bell-dot"></span>
       {/if}
-    </div>
+    </button>
 
     <button
       class="theme-btn"
@@ -132,7 +147,7 @@
   }
 
   /* ── Bell ── */
-  .bell-wrap {
+  .bell-btn {
     position: relative;
     display: flex;
     align-items: center;
@@ -140,16 +155,26 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
+    border: none;
+    background: none;
     color: var(--color-text-secondary);
     opacity: 0.55;
-    /* Inert — no pointer interaction this phase */
-    pointer-events: none;
-    user-select: none;
+    cursor: default;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 150ms;
   }
 
-  /* Reconnecting: pulse the bell to signal connectivity issue */
-  .bell-wrap.reconnecting {
+  /* Active / has unassigned — make it tappable and visible */
+  .bell-btn.has-badge {
     opacity: 1;
+    cursor: pointer;
+  }
+  .bell-btn.has-badge:active { opacity: 0.75; }
+
+  /* Reconnecting: pulse the bell to signal connectivity issue */
+  .bell-btn.reconnecting {
+    opacity: 1;
+    cursor: default;
     animation: bellPulse 2s ease-in-out infinite;
     color: var(--color-accent-alert);
   }
@@ -159,7 +184,7 @@
     50%       { opacity: 1.0; }
   }
 
-  /* Dot indicator (notification or reconnecting) */
+  /* Small dot for generic notification / reconnecting */
   .bell-dot {
     position: absolute;
     top: 5px;
@@ -169,10 +194,32 @@
     border-radius: 50%;
     background: var(--color-accent-info);
     border: 1.5px solid var(--color-canvas);
+    pointer-events: none;
   }
 
   .bell-dot.reconnect-dot {
     background: var(--color-accent-alert);
+  }
+
+  /* Numbered badge for unassigned devices */
+  .badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: #C66B6B;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    pointer-events: none;
+    border: 1.5px solid var(--color-canvas);
   }
 
   /* ── Theme toggle ── */

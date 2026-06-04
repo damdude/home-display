@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Music2, MoreHorizontal, Subtitles, ListMusic, Airplay } from 'lucide-svelte';
+  import { fade } from 'svelte/transition';
   import ProgressBar    from '$lib/components/music/ProgressBar.svelte';
   import VolumeControl  from '$lib/components/music/VolumeControl.svelte';
   import MusicTransport from '$lib/components/music/MusicTransport.svelte';
@@ -28,6 +29,15 @@
   let isPlaying  = $derived(player?.state === 'playing');
   let isActive   = $derived(!!player && player.state !== 'off' && player.state !== 'unavailable');
   let idleOpacity = $derived(isActive ? '1' : '0.35');
+
+  // Toast for unimplemented features
+  let toastMsg = $state('');
+  let toastTimer: ReturnType<typeof setTimeout>;
+  function showToast(msg: string) {
+    toastMsg = msg;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastMsg = ''; }, 2000);
+  }
 </script>
 
 <div class="page">
@@ -49,7 +59,7 @@
         {/if}
 
         <!-- Source badge — bottom-left overlay -->
-        {#if hasTrack}
+        {#if player?.media.appName || player?.media.appId}
           <div class="source-badge">
             <SourceBadge
               appName={player!.media.appName}
@@ -149,7 +159,7 @@
   <div class="zone zone-utility">
     <div class="util-row">
       <!-- Subtitles — placeholder -->
-      <button class="util-btn" aria-label="Subtitles">
+      <button class="util-btn" aria-label="Lyrics" onclick={() => showToast('Lyrics coming soon')}>
         <Subtitles size={22} strokeWidth={1.5} />
       </button>
 
@@ -164,7 +174,7 @@
       </button>
 
       <!-- Queue -->
-      <button class="util-btn" aria-label="Queue">
+      <button class="util-btn" aria-label="Queue" onclick={() => showToast('Queue coming soon')}>
         <ListMusic size={22} strokeWidth={1.5} />
       </button>
     </div>
@@ -180,6 +190,10 @@
 
 <!-- Cast picker sheet (fixed overlay) -->
 <CastPicker open={castOpen} onClose={() => castOpen = false} />
+
+{#if toastMsg}
+  <div class="toast" transition:fade={{ duration: 200 }}>{toastMsg}</div>
+{/if}
 
 <style>
   /* ── Full page grid — 7 rows, no scroll ── */
@@ -355,6 +369,23 @@
     color: var(--color-text-tertiary);
     text-transform: uppercase; letter-spacing: 0.09em;
     margin: 0; flex-shrink: 0;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 12%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 8px 20px;
+    border-radius: 999px;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 50;
   }
 
 </style>

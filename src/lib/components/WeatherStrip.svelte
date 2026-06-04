@@ -69,7 +69,7 @@
       <div class="left">
         <span class="cond-icon">
           <!-- 80-96px condition icon — fills the card height proportionally -->
-          <WeatherIcon condition={weather.state} size={88} strokeWidth={1.1} />
+          <WeatherIcon condition={weather.state} size={110} strokeWidth={1.1} />
         </span>
         <div class="cond-text">
           <span class="cond-label">{condLabel(weather.state)}</span>

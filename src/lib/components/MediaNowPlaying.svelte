@@ -12,6 +12,7 @@
   import { goto }    from '$app/navigation';
   import { Music2, SkipBack, SkipForward, Play, Pause, Airplay } from 'lucide-svelte';
   import CastPicker  from '$lib/components/music/CastPicker.svelte';
+  import SourceBadge from '$lib/components/music/SourceBadge.svelte';
   import type { ResolvedPlayer } from '$lib/music/playerResolution.js';
   import { callHaService } from '$lib/stores/ha.svelte.js';
 
@@ -29,7 +30,7 @@
   }
 
   // ── Inline live progress ───────────────────────────────────────────────────
-  let livePos = $state(player?.media.position ?? 0);
+  let livePos = $state(0);
   let dragPos = $state<number | null>(null);
   let ticker: ReturnType<typeof setInterval>;
   let dragging = $state(false);
@@ -131,6 +132,9 @@
         {#if hasMedia && player?.name}
           <p class="listening-on">Listening on {player.name}</p>
         {/if}
+        {#if hasMedia}
+          <SourceBadge appName={player!.media.appName} appId={player!.media.appId} />
+        {/if}
       </div>
 
       <!-- 2. Progress bar + timestamps -->
@@ -169,22 +173,22 @@
         <button class="ctrl" aria-label="Previous"
           disabled={!(player?.caps.canPrevious)}
           onclick={() => mp('media_previous_track')}>
-          <SkipBack size={26} strokeWidth={1.5} />
+          <SkipBack size={32} strokeWidth={1.5} />
         </button>
 
         <button class="ctrl play" aria-label={isPlaying ? 'Pause' : 'Play'}
           onclick={() => mp(isPlaying ? 'media_pause' : 'media_play')}>
           {#if isPlaying}
-            <Pause size={34} strokeWidth={1.8} />
+            <Pause size={40} strokeWidth={1.8} />
           {:else}
-            <Play  size={34} strokeWidth={1.8} />
+            <Play  size={40} strokeWidth={1.8} />
           {/if}
         </button>
 
         <button class="ctrl" aria-label="Next"
           disabled={!(player?.caps.canNext)}
           onclick={() => mp('media_next_track')}>
-          <SkipForward size={26} strokeWidth={1.5} />
+          <SkipForward size={32} strokeWidth={1.5} />
         </button>
 
         <!-- AirPlay / cast -->
@@ -230,8 +234,8 @@
   /* Artwork */
   .artwork {
     flex-shrink: 0;
-    width:  clamp(72px, 9vw, 110px);
-    height: clamp(72px, 9vw, 110px);
+    width:  clamp(90px, 11vw, 140px);
+    height: clamp(90px, 11vw, 140px);
     border-radius: 12px; overflow: hidden;
     background: var(--color-surface-2);
     box-shadow: 0 4px 16px rgba(0,0,0,0.35);

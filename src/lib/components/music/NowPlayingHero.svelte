@@ -54,10 +54,10 @@
 
     <!-- Source badge row -->
     <div class="badge-row">
-      {#if hasMedia}
+      {#if player?.media.appName || player?.media.appId}
         <SourceBadge
-          appName={player!.media.appName}
-          appId={player!.media.appId}
+          appName={player.media.appName}
+          appId={player.media.appId}
         />
       {/if}
     </div>

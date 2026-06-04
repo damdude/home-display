@@ -19,6 +19,7 @@ import { env } from '$env/dynamic/private';
 
 export interface ZoneEntity {
   entity_id: string;
+  device_id: string | null;
   domain:    string;
   name:      string;
 }
@@ -99,7 +100,12 @@ interface EntityEntry {
 
 // ── Registry fetch ────────────────────────────────────────────────────────────
 
-async function fetchZoneRegistry(): Promise<void> {
+/** Re-fetch all registries and broadcast to SSE subscribers immediately. */
+export async function refreshZoneRegistry(): Promise<void> {
+  await doRegistryRefresh();
+}
+
+async function doRegistryRefresh(): Promise<void> {
   const haUrl   = env.HA_URL;
   const haToken = env.HA_TOKEN;
   if (!haUrl || !haToken) { console.error('[Zones] HA_URL / HA_TOKEN not set'); return; }
@@ -161,6 +167,7 @@ async function fetchZoneRegistry(): Promise<void> {
 
       zoneMap[bucketId].entities.push({
         entity_id: e.entity_id,
+        device_id: e.device_id ?? null,
         domain,
         name: e.name ?? e.original_name ?? e.entity_id,
       });
@@ -212,7 +219,7 @@ async function fetchZoneRegistry(): Promise<void> {
 export function startZoneRefresh(): void {
   if (started) return;
   started = true;
-  setTimeout(() => void fetchZoneRegistry(), INITIAL_DELAY_MS);
-  setInterval(() => void fetchZoneRegistry(), REFRESH_INTERVAL);
+  setTimeout(() => void doRegistryRefresh(), INITIAL_DELAY_MS);
+  setInterval(() => void doRegistryRefresh(), REFRESH_INTERVAL);
   console.log('[Zones] Registry refresh scheduled (10 min)');
 }

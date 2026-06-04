@@ -3,7 +3,7 @@
   import type { PlayerCaps } from '$lib/music/playerResolution.js';
 
   interface Props {
-    state:   string;
+    playbackState: string;
     caps:    PlayerCaps;
     shuffle: boolean;
     repeat:  'off' | 'one' | 'all';
@@ -16,11 +16,11 @@
     onRepeatCycle?:   () => void;
   }
   let {
-    state, caps, shuffle, repeat, large = false,
+    playbackState, caps, shuffle, repeat, large = false,
     onPlay, onPause, onPrevious, onNext, onShuffleToggle, onRepeatCycle,
   }: Props = $props();
 
-  let isPlaying = $derived(state === 'playing');
+  let isPlaying = $derived(playbackState === 'playing');
 </script>
 
 <div class="transport" class:large>

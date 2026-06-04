@@ -1,9 +1,8 @@
 <script lang="ts">
   import { fade }         from 'svelte/transition';
   import { cubicOut }     from 'svelte/easing';
-  import { X }            from 'lucide-svelte';
+  import { X, Play, Pause, SkipBack, SkipForward } from 'lucide-svelte';
   import ProgressBar      from './ProgressBar.svelte';
-  import MusicTransport   from './MusicTransport.svelte';
   import type { ResolvedPlayer } from '$lib/music/playerResolution.js';
   import { callHaService } from '$lib/stores/ha.svelte.js';
 
@@ -12,6 +11,8 @@
     onClose: () => void;
   }
   let { player, onClose }: Props = $props();
+
+  let isPlaying = $derived(player.state === 'playing');
 
   // Show the close X clearly only when the user touches the screen
   let xVisible   = $state(false);
@@ -23,13 +24,8 @@
     xTimer = setTimeout(() => { xVisible = false; }, 3_000);
   }
 
-  function mp(service: string, extra: Record<string, unknown> = {}) {
-    callHaService('media_player', service, { entity_id: player.controlId, ...extra });
-  }
-
-  function cycleRepeat(cur: 'off' | 'one' | 'all') {
-    const next = cur === 'off' ? 'one' : cur === 'one' ? 'all' : 'off';
-    mp('repeat_set', { repeat: next });
+  function mp(service: string) {
+    callHaService('media_player', service, { entity_id: player.controlId });
   }
 </script>
 
@@ -41,15 +37,6 @@
   ontouchstart={touchActivity}
   onclick={touchActivity}
 >
-  <!-- Ambient blurred artwork background -->
-  {#if player.media.artwork}
-    <div
-      class="ambient"
-      style:background-image="url('{player.media.artwork}')"
-    ></div>
-  {/if}
-  <div class="dark-overlay"></div>
-
   <!-- Close button — top-right, fades in on interaction -->
   <button
     class="close-btn"
@@ -63,7 +50,7 @@
   <!-- Main content — centered -->
   <div class="main">
     <!-- Artwork -->
-    <div class="artwork" class:paused={player.state !== 'playing'}>
+    <div class="artwork" class:paused={!isPlaying}>
       {#if player.media.artwork}
         <img src={player.media.artwork} alt="Album art" class="art-img" />
       {:else}
@@ -77,9 +64,6 @@
       {#if player.media.artist}
         <p class="artist">{player.media.artist}</p>
       {/if}
-      {#if player.media.album}
-        <p class="album">{player.media.album}</p>
-      {/if}
     </div>
 
     <!-- Progress -->
@@ -91,27 +75,26 @@
         playbackState={player.state}
         canSeek={player.caps.canSeek}
         large
-        onSeek={(s) => mp('media_seek', { seek_position: s })}
+        onSeek={(s) => callHaService('media_player', 'media_seek', { entity_id: player.controlId, seek_position: s })}
       />
     </div>
 
-    <!-- Transport — large -->
-    <MusicTransport
-      playbackState={player.state}
-      caps={player.caps}
-      shuffle={player.media.shuffleOn}
-      repeat={player.media.repeat}
-      large
-      onPlay={() => mp('media_play')}
-      onPause={() => mp('media_pause')}
-      onPrevious={() => mp('media_previous_track')}
-      onNext={() => mp('media_next_track')}
-      onShuffleToggle={() => mp('shuffle_set', { shuffle: !player.media.shuffleOn })}
-      onRepeatCycle={() => cycleRepeat(player.media.repeat)}
-    />
-
-    <!-- Speaker name -->
-    <p class="speaker-label">Playing on {player.name}</p>
+    <!-- Minimal transport: SkipBack · Play/Pause · SkipForward -->
+    <div class="transport">
+      <button class="ctrl" onclick={() => mp('media_previous_track')} disabled={!player.caps.canPrevious} aria-label="Previous">
+        <SkipBack size={44} strokeWidth={1.5} />
+      </button>
+      <button class="ctrl play-btn" onclick={() => mp(isPlaying ? 'media_pause' : 'media_play')} aria-label={isPlaying ? 'Pause' : 'Play'}>
+        {#if isPlaying}
+          <Pause size={56} strokeWidth={1.8} />
+        {:else}
+          <Play  size={56} strokeWidth={1.8} />
+        {/if}
+      </button>
+      <button class="ctrl" onclick={() => mp('media_next_track')} disabled={!player.caps.canNext} aria-label="Next">
+        <SkipForward size={44} strokeWidth={1.5} />
+      </button>
+    </div>
   </div>
 </div>
 
@@ -120,23 +103,7 @@
     position: fixed; inset: 0; z-index: 200;
     display: flex; align-items: center; justify-content: center;
     overflow: hidden;
-  }
-
-  /* Ambient artwork fill — scaled + blurred */
-  .ambient {
-    position: absolute; inset: -60px;
-    background-size: cover; background-position: center;
-    filter: blur(70px);
-    opacity: 0.38;
-    transform: scale(1.15);
-    pointer-events: none;
-  }
-
-  /* Dark base coat beneath the blur */
-  .dark-overlay {
-    position: absolute; inset: 0;
-    background: rgba(10, 10, 12, 0.72);
-    pointer-events: none;
+    background: #000000;
   }
 
   /* Close button */
@@ -149,8 +116,7 @@
     color: rgba(255,255,255,0.6);
     cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    opacity: 0.6;
-    backdrop-filter: blur(4px);
+    opacity: 0;
     transition: opacity 300ms ease, background 200ms;
     -webkit-tap-highlight-color: transparent;
   }
@@ -168,8 +134,8 @@
 
   /* Artwork */
   .artwork {
-    width: min(60vw, 55vh);
-    height: min(60vw, 55vh);
+    width: min(55vw, 50vh);
+    height: min(55vw, 50vh);
     border-radius: 24px;
     overflow: hidden;
     box-shadow: 0 16px 60px rgba(0,0,0,0.65);
@@ -202,19 +168,24 @@
     margin: 0;
   }
 
-  .album {
-    font-size: clamp(15px, 1.67vw, 26px);
-    font-weight: 400; color: rgba(255,255,255,0.48);
-    margin: 0;
-  }
-
   /* Progress bar — full width of content column */
   .progress-wrap { width: 100%; }
 
-  /* Speaker label */
-  .speaker-label {
-    font-size: clamp(13px, 1.25vw, 20px);
-    color: rgba(255,255,255,0.38);
-    margin: 0; letter-spacing: 0.02em;
+  /* Transport */
+  .transport {
+    display: flex; align-items: center; justify-content: center;
+    gap: clamp(24px, 4vw, 56px);
   }
+
+  .ctrl {
+    border: none; background: none; cursor: pointer;
+    color: rgba(255,255,255,0.88);
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px; border-radius: 50%;
+    transition: transform 130ms cubic-bezier(0.32,0.72,0,1), opacity 130ms;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ctrl:disabled { opacity: 0.28; cursor: default; pointer-events: none; }
+  .ctrl:not(:disabled):active { transform: scale(0.88); }
+  .play-btn { padding: 6px; }
 </style>

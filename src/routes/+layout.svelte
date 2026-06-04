@@ -134,7 +134,8 @@
 <div class="layout">
   <!-- Shared header: clock + greeting + bell + theme toggle -->
   <header class="shell-header">
-    <TopStrip haConnected={haStore.connected} />
+    <!-- TODO: make this configurable via .env DISPLAY_LOCATION -->
+    <TopStrip haConnected={haStore.connected} locationLabel="Master Bathroom" />
   </header>
 
   <!-- Global status pill row — visible on every section -->
