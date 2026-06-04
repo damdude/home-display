@@ -148,3 +148,17 @@ screensaver. Develop with code on Mac, runtime on Pi, view from Mac browser.\
 - Commit to git (locally) after every successful session\
 - Credentials (HA token, RTSP passwords, future API keys) in .env only,\
   never in source files, .env is gitignored}
+## Phase 5 — COMPLETE
+
+Music tab rebuilt. Apple Music-style full-screen player. Files:
+- src/routes/music/+page.svelte — full player layout
+- src/lib/components/music/NowPlayingHero.svelte — hero with transport
+- src/lib/components/music/CastPicker.svelte — floating card, fly-up from bottom, filtered speakers (maindoor_speaker_2, second_speaker_2, bbox only), volume fill bars, multi-select
+- src/lib/components/music/ProgressBar.svelte — prop renamed to playbackState (was state — Svelte 5 rune conflict)
+- src/lib/components/music/VolumeControl.svelte — two-tone gradient slider
+- src/lib/components/music/MusicTransport.svelte — adaptive transport
+- src/lib/components/MediaNowPlaying.svelte — CarPlay compact style on Home tab
+
+## Phase 4 — READY TO BUILD
+
+See full prompt in conversation. Paste into new Claude Code session.

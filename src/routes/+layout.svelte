@@ -10,6 +10,7 @@
   import BottomNav        from '$lib/components/BottomNav.svelte';
   import MusicScreensaver from '$lib/components/music/MusicScreensaver.svelte';
   import { startHaStream }       from '$lib/stores/ha.svelte.js';
+  import { startZonesStream }    from '$lib/stores/zonesStore.svelte.js';
   import { haStore }             from '$lib/stores/ha.svelte.js';
   import { musicState }          from '$lib/stores/musicState.svelte.js';
   import { idleState, startIdleDetection } from '$lib/stores/idleDetection.svelte.js';
@@ -31,9 +32,10 @@
 
   // ── HA stream + idle detection ─────────────────────────────────────────────
   onMount(() => {
-    const stopHa   = startHaStream();
-    const stopIdle = startIdleDetection();
-    return () => { stopHa(); stopIdle(); };
+    const stopHa    = startHaStream();
+    const stopIdle  = startIdleDetection();
+    const stopZones = startZonesStream();
+    return () => { stopHa(); stopIdle(); stopZones(); };
   });
 
   // ── Screensaver trigger ─────────────────────────────────────────────────────
