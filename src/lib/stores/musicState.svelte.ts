@@ -22,19 +22,23 @@ let _castPickerOpen = $state(false);
 function pickActive(players: ResolvedPlayer[]): ResolvedPlayer | null {
   if (!players.length) return null;
 
-  // Honour explicit selection if the player still exists
+  // Honour explicit selection if still alive
   if (_selectedId) {
     const sel = players.find(p => p.controlId === _selectedId);
     if (sel) return sel;
+    // Selected entity gone — clear selection and fall through
+    _selectedId = null;
   }
 
-  // Otherwise prefer the playing speaker with freshest metadata
+  // Prefer any player in 'playing' state, freshest position update first
   const playing = players
     .filter(p => p.state === 'playing')
-    .sort((a, b) =>
-      (b.media.positionUpdatedAt ?? 0) - (a.media.positionUpdatedAt ?? 0),
-    );
-  return playing[0] ?? players[0];
+    .sort((a, b) => (b.media.positionUpdatedAt ?? 0) - (a.media.positionUpdatedAt ?? 0));
+
+  if (playing.length) return playing[0];
+
+  // Fallback: paused > idle > off (already sorted by resolveMediaPlayers via STATE_RANK)
+  return players[0] ?? null;
 }
 
 export const musicState = {

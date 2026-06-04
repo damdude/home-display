@@ -10,7 +10,7 @@
    * Tapping the tile body → /music. Controls use stopPropagation.
    */
   import { goto }    from '$app/navigation';
-  import { Music2, SkipBack, SkipForward, Play, Pause, Airplay } from 'lucide-svelte';
+  import { Music2, SkipBack, SkipForward, Play, Pause, Airplay, Volume1, Volume2 } from 'lucide-svelte';
   import CastPicker  from '$lib/components/music/CastPicker.svelte';
   import SourceBadge from '$lib/components/music/SourceBadge.svelte';
   import type { ResolvedPlayer } from '$lib/music/playerResolution.js';
@@ -62,6 +62,22 @@
   function fmtRemaining(pos: number, total: number): string {
     const rem = Math.max(0, total - pos);
     return `-${Math.floor(rem / 60)}:${Math.floor(rem % 60).toString().padStart(2, '0')}`;
+  }
+
+  // ── Volume ────────────────────────────────────────────────────────────────
+  let localVol = $state(0.5);
+  $effect(() => {
+    if (player?.media.volume != null) localVol = player.media.volume;
+  });
+  let fillPct = $derived(`${Math.round(localVol * 100)}%`);
+
+  function handleVol(e: Event) {
+    const v = parseFloat((e.target as HTMLInputElement).value);
+    localVol = v;
+    if (player) callHaService('media_player', 'volume_set', {
+      entity_id: player.controlId,
+      volume_level: v,
+    });
   }
 
   // ── Seek drag ─────────────────────────────────────────────────────────────
@@ -162,7 +178,23 @@
         </div>
       </div>
 
-      <!-- 3. Transport + cast -->
+      <!-- 3. Volume slider -->
+      {#if isActive && (player?.caps.canVolume ?? false)}
+        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+        <div class="vol-row" onclick={(e) => e.stopPropagation()}>
+          <Volume1 size={16} strokeWidth={1.5} style="color: var(--color-text-tertiary); opacity: 0.6; flex-shrink: 0;" />
+          <input
+            class="vol-slider"
+            type="range" min="0" max="1" step="0.02"
+            value={localVol}
+            style="--fill-pct: {fillPct}"
+            oninput={handleVol}
+          />
+          <Volume2 size={16} strokeWidth={1.5} style="color: var(--color-text-tertiary); opacity: 0.6; flex-shrink: 0;" />
+        </div>
+      {/if}
+
+      <!-- 4. Transport + cast -->
       <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
       <div
         class="controls"
@@ -234,13 +266,14 @@
   /* Artwork */
   .artwork {
     flex-shrink: 0;
-    width:  clamp(90px, 11vw, 140px);
-    height: clamp(90px, 11vw, 140px);
+    width:  clamp(110px, 14vw, 180px);
+    height: clamp(110px, 14vw, 180px);
     border-radius: 12px; overflow: hidden;
     background: var(--color-surface-2);
     box-shadow: 0 4px 16px rgba(0,0,0,0.35);
     transition: opacity 300ms ease, filter 300ms ease;
-    align-self: center;
+    align-self: stretch;
+    aspect-ratio: 1;
   }
   .artwork.paused { opacity: 0.5; filter: saturate(0.5); }
   .art-img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -312,7 +345,32 @@
     color: var(--color-text-tertiary); opacity: 0.6;
   }
 
-  /* 3. Controls row — full width, evenly spaced */
+  /* 3. Volume row */
+  .vol-row {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; cursor: default; user-select: none;
+  }
+
+  .vol-slider {
+    flex: 1; height: 3px; cursor: pointer;
+    -webkit-appearance: none; appearance: none;
+    border-radius: 999px; outline: none;
+    background: linear-gradient(
+      to right,
+      var(--color-accent-music) 0%,
+      var(--color-accent-music) var(--fill-pct),
+      var(--color-surface-2) var(--fill-pct),
+      var(--color-surface-2) 100%
+    );
+  }
+  .vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--color-accent-music); cursor: pointer;
+    box-shadow: 0 0 0 2px rgba(155,123,181,0.25);
+  }
+
+  /* 4. Controls row — full width, evenly spaced */
   .controls {
     display: flex; align-items: center;
     justify-content: space-around;

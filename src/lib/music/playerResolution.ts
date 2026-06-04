@@ -196,7 +196,7 @@ export function resolveMediaPlayers(entities: HassEntities): ResolvedPlayer[] {
       name, controlId, stateId,
       isMaManaged: isMa(controlEnt),
       caps:  decodeCaps(sf),
-      state: controlEnt.state,
+      state: stateEnt.state !== 'unavailable' ? stateEnt.state : controlEnt.state,
       media: extractMeta(stateEnt, controlEnt),
     });
   }
