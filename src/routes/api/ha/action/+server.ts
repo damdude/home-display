@@ -38,6 +38,16 @@ export const POST: RequestHandler = async ({ request }) => {
     serviceData = {},
   } = body as { domain: string; service: string; serviceData?: Record<string, unknown> };
 
+  const ALLOWED_DOMAINS = new Set([
+    'media_player', 'climate', 'switch', 'light',
+    'alarm_control_panel', 'cover', 'fan', 'input_boolean',
+    'scene', 'script', 'automation',
+  ]);
+
+  if (!ALLOWED_DOMAINS.has(domain)) {
+    error(400, `Domain '${domain}' is not permitted`);
+  }
+
   try {
     await callService(domain, service, serviceData);
     return new Response(null, { status: 204 });

@@ -4,7 +4,7 @@
   import { callHaService } from '$lib/stores/ha.svelte.js';
   import { musicState }   from '$lib/stores/musicState.svelte.js';
 
-  const DEFAULT_SPEAKER = 'media_player.maindoor_speaker';
+  const DEFAULT_SPEAKER = 'media_player.maindoor_speaker_2';
   const KEXP_STREAM     = 'https://kexp-mp3-128.streamguys1.com/kexp128.mp3';
 
   function targetId(): string {

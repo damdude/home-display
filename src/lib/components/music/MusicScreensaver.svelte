@@ -88,7 +88,7 @@
         position={player.media.position}
         duration={player.media.duration}
         positionUpdatedAt={player.media.positionUpdatedAt}
-        state={player.state}
+        playbackState={player.state}
         canSeek={player.caps.canSeek}
         large
         onSeek={(s) => mp('media_seek', { seek_position: s })}
@@ -97,7 +97,7 @@
 
     <!-- Transport — large -->
     <MusicTransport
-      state={player.state}
+      playbackState={player.state}
       caps={player.caps}
       shuffle={player.media.shuffleOn}
       repeat={player.media.repeat}

@@ -84,7 +84,7 @@
         position={player?.media.position           ?? null}
         duration={player?.media.duration           ?? null}
         positionUpdatedAt={player?.media.positionUpdatedAt ?? null}
-        state={player?.state ?? 'off'}
+        playbackState={player?.state ?? 'off'}
         canSeek={player?.caps.canSeek ?? false}
         onSeek={(s) => mp('media_seek', { seek_position: s })}
       />
@@ -93,7 +93,7 @@
     <!-- Transport -->
     <div style:opacity={hasMedia ? '1' : '0.38'} style:pointer-events={hasMedia ? 'auto' : 'none'}>
       <MusicTransport
-        state={player?.state ?? 'off'}
+        playbackState={player?.state ?? 'off'}
         caps={player?.caps ?? {
           canPlay:false,canPause:false,canStop:false,canSeek:false,
           canPrevious:false,canNext:false,canVolume:false,canMute:false,

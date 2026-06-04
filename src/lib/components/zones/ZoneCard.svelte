@@ -447,7 +447,7 @@
         <div
           class="climate-expand"
           transition:slide={{ duration: 220 }}
-          onclick|stopPropagation
+          onclick={(e) => e.stopPropagation()}
         >
           <div class="cl-top-row">
             <span class="cl-temp">

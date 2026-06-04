@@ -1,164 +1,137 @@
-{\rtf1\ansi\ansicpg1252\cocoartf2870
-\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
-{\colortbl;\red255\green255\blue255;}
-{\*\expandedcolortbl;;}
-\margl1440\margr1440\vieww26320\viewh19960\viewkind0
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+# Home Display — Project Context
 
-\f0\fs24 \cf0 # Home Display Project Context\
-\
-## What this is\
-A custom web app dashboard for wall-mounted Raspberry Pi displays, integrating\
-with Home Assistant. Apple-inspired design, dark mode, 4 sections (Home,\
-Security, Music, Controls), per-instance device permissions, music-artwork\
-screensaver. Develop with code on Mac, runtime on Pi, view from Mac browser.\
-\
-## Hardware\
-- Raspberry Pi 4 Model B, 4GB RAM, aarch64\
-- OS: Raspberry Pi OS based on Debian 13 (Trixie), kernel 6.12\
-- Pi is headless; accessed only via SSH from the Mac (user: dash @ 192.168.7.21)\
-- Dev display: external monitor at 1440\'d72560 in portrait orientation,\
-  connected directly to Pi via HDMI (used for production-mode visual checks)\
-- Target production display (deferred): Waveshare 10.1" DSI at 1280\'d7800,\
-  portrait, touchscreen, with PoE HAT for power\
-- USB-C power during development; PoE HAT in production\
-- Node.js LTS + npm installed on the Pi (via NodeSource)\
-\
-## Access model\
-- Pi is accessed exclusively via SSH from the Mac at 192.168.7.21\
-- No keyboard or mouse is connected to the Pi during dev\
-- Mouse may be connected later for touch simulation; never a keyboard\
-- All Pi interaction must be scriptable from Mac SSH; no GUI-only workflows\
-- During dev, the Mac browser connects to http://192.168.7.21:5173 to view\
-  what the Pi serves; the Pi's connected monitor is only used for occasional\
-  visual checks and for production-mode kiosk display\
-\
-## Tech stack\
-- SvelteKit + TypeScript\
-- Tailwind CSS + Apple-inspired design tokens\
-- home-assistant-js-websocket for HA integration\
-- HLS.js for camera streams\
-- Electron for Pi packaging (deferred to Phase 9; may not be needed if\
-  Chromium kiosk suffices)\
-\
-## Home Assistant setup\
-- HAOS in a TrueNAS VM at 192.168.7.39\
-- 4 Eufy 2C + 1 Eufy 2C Pro via HomeBase 2 \uc0\u8594  RTSP via Generic Camera integration\
-- HomeBase 2 has native HomeKit Secure Video direct to Apple Home (not via HA)\
-- Wyze Doorbell v1 attempted via IDisposable Wyze Bridge; DTLS handshake fails\
-  with this doorbell firmware. Deferred.\
-- No iCloud+ subscription \uc0\u8594  no HKSV recording\
-- Spotify: building UI assuming Premium API access (Connect + Web Playback SDK).\
-  User does not currently have Premium. Free-tier playback is not supported by\
-  Spotify's APIs; the dashboard will be wired correctly so when user upgrades,\
-  it works. Until then, show now-playing metadata and disable casting controls.\
-- Amazon Music: build in parallel with full functionality\
-- HA admin/non-admin user roles drive dashboard control permissions\
-\
-## Network\
-- Eero Pro 6 router\
-- All devices on 192.168.7.0/24\
-- HomeBase 2 reserved at 192.168.7.234\
-- HAOS at 192.168.7.39\
-- Pi at 192.168.7.21\
-- HomeBase 2 RTSP: rtsp://USER:PASS@192.168.7.234/liveN (creds in 1Password)\
-\
-## v1 scope (this build)\
-- Master bathroom version only; per-room variants in v2\
-- Hardcode room + owner for v1\
-- Admin login gates device control; all instances can VIEW state\
-- Music: now-playing display + casting controls (casting disabled until Premium)\
-\
-## Development workflow\
-- All code lives on the Mac at ~/Documents/Claude/Projects/Dashboard/\
-- Edits happen on the Mac (Claude Code or any editor)\
-- Files synced to Pi via rsync; Pi runs the dev server, Mac views the result\
-- Pi path: /home/dash/home-display/\
-- Pi user: dash, accessed via SSH at 192.168.7.21\
-- Sync command (run from Mac after each session):\
-    rsync -avz --delete \\\
-      --exclude 'node_modules' --exclude '.git' --exclude '.svelte-kit' \\\
-      ~/Documents/Claude/Projects/Dashboard/ dash@192.168.7.21:/home/dash/home-display/\
-- The dev server binds to 0.0.0.0:5173 so it's accessible from the Mac\
-- View dashboard from Mac browser at: http://192.168.7.21:5173\
-- Visual validation on Pi's monitor: switch to production mode via systemd\
-- Mac does NOT run npm install, npm run build, or npm run dev. These run on the Pi. Mac is editor + git + rsync only.\
-\
-## Runtime modes\
-- Pi runs in one of two modes, controlled by /home/dash/home-display/mode file\
-- Debug mode: `npm run dev`, verbose logs, no Chromium auto-launch,\
-  resolution forced to 1440\'d72560 portrait (the dev monitor)\
-- Production mode: built static site served by Node, Chromium auto-launches\
-  in kiosk at the actual display resolution\
-- Mode is switched by writing 'debug' or 'production' to the mode file\
-  and restarting the systemd service:\
-    ssh dash@192.168.7.21 'echo debug > /home/dash/home-display/mode && \\\
-      sudo systemctl restart home-display'\
-- Two systemd services manage the Pi: home-display.service (the dashboard)\
-  and home-display-kiosk.service (Chromium, only enabled in production)\
-- All logs to journalctl, queryable from Mac via SSH:\
-    ssh dash@192.168.7.21 'journalctl -u home-display -f'\
-\
-## Pi-specific runtime notes\
-- Pi 4 + 1440\'d72560 is workable but tight on GPU throughput for Chromium\
-- Prefer opacity/crossfade transitions over heavy motion or blur effects\
-- All performance-sensitive code (camera streams, transitions) must be\
-  validated on the Pi, not assumed-fine from Mac dev\
-- We test at 1440\'d72560 dev resolution, but design must also work at the\
-  smaller 1280\'d7800 target Waveshare resolution. Use responsive layout\
-  that adapts; do not pixel-pin to either resolution.\
-- Compositor is labwc (Wayland); X11/LXDE is not present on Trixie\
-- Wayland socket: WAYLAND_DISPLAY=wayland-0, XDG_RUNTIME_DIR=/run/user/1000\
-- Display rotation is configured in ~/.config/labwc/autostart via wlr-randr;\
-  output name and transform live in DISPLAY_OUTPUT / DISPLAY_TRANSFORM at the\
-  top of scripts/deploy.sh\
-- Query available outputs from Mac:\
-    ssh dash@192.168.7.21 'WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000 wlr-randr'\
-- Waveshare DSI display will likely need a different transform value; verify\
-  with wlr-randr when the hardware arrives\
-- Touch coordinate mapping (Waveshare touchscreen) is separate from display\
-  transform; both must match for correct touch input\
-\
-## Build phases\
-0. Project skeleton + HA WebSocket connection + systemd + mode switching\
-1. Home section (weather, thermostat, sensors)\
-2. Bottom nav + section routing\
-3. Security section (camera grid, fullscreen tap, arm/disarm)\
-4. Smart Home Controls (entity list, permissions filter)\
-5. Music (Spotify + Amazon Music, now-playing + casting UI)\
-6. Screensaver (idle \uc0\u8594  time/weather; playing \u8594  music artwork)\
-7. Admin login + first-boot config\
-8. Polish (animations, error states, offline)\
-9. Production deployment refinements (auto-start hardening, recovery, etc.)\
-\
-## Conventions\
-- TypeScript strict mode\
-- All HA entity references and the WebSocket client live under\
-  src/lib/server/ha/ (server-only; SvelteKit enforces this). Client\
-  components subscribe to entity state via server-side endpoints or load\
-  functions, never by importing from src/lib/server/.\
-- The HA token (HA_TOKEN env var) must never appear in client-side code.\
-  Entity data flows into components via a +page.ts or +layout.ts load\
-  function, or through a +server.ts endpoint; never via direct import\
-  from src/lib/server/.\
-- Design tokens in src/lib/design/tokens.ts, never inline values\
-- All npm/Node execution happens on the Pi, never on the Mac. The Mac handles editing, git, and rsync only. To validate a change, deploy and check journalctl on the Pi.\
-- Each session ends with the sync command run and the Pi displaying the\
-  current code, so we always know what's actually deployed\
-- Commit to git (locally) after every successful session\
-- Credentials (HA token, RTSP passwords, future API keys) in .env only,\
-  never in source files, .env is gitignored}
-## Phase 5 — COMPLETE
+## What this is
+A custom SvelteKit 5 (Svelte 5 runes) dashboard for a wall-mounted Raspberry Pi display. Integrates with Home Assistant via server-side WebSocket. Apple-inspired dark mode design. Four tabs: Home, Security, Music, Zones.
 
-Music tab rebuilt. Apple Music-style full-screen player. Files:
-- src/routes/music/+page.svelte — full player layout
-- src/lib/components/music/NowPlayingHero.svelte — hero with transport
-- src/lib/components/music/CastPicker.svelte — floating card, fly-up from bottom, filtered speakers (maindoor_speaker_2, second_speaker_2, bbox only), volume fill bars, multi-select
-- src/lib/components/music/ProgressBar.svelte — prop renamed to playbackState (was state — Svelte 5 rune conflict)
-- src/lib/components/music/VolumeControl.svelte — two-tone gradient slider
-- src/lib/components/music/MusicTransport.svelte — adaptive transport
-- src/lib/components/MediaNowPlaying.svelte — CarPlay compact style on Home tab
+## Hardware
+- Raspberry Pi 4 Model B, 4GB RAM, aarch64, Debian 13 (Trixie)
+- External monitor at 1440×2560 portrait (wlr-randr transform 270 under labwc/Wayland)
+- Pi is headless — accessed only via SSH from Mac (user: dash @ 192.168.7.21)
+- Target production display (deferred): Waveshare 10.1" DSI at 1280×800, portrait, touchscreen
 
-## Phase 4 — READY TO BUILD
+## Network
+- eero Pro 6 router, all devices on 192.168.7.0/24
+- Home Assistant (HAOS VM on TrueNAS SCALE) at 192.168.7.39:8123
+- Pi at 192.168.7.21
+- HomeBase 2 (Eufy cameras) at 192.168.7.234
 
-See full prompt in conversation. Paste into new Claude Code session.
+## Development workflow
+- Code lives on Mac at ~/Documents/Claude/Projects/Dashboard/
+- Mac is for editing only — never run npm on Mac
+- Pi runs all npm commands (install, dev, build)
+- Sync to Pi: `bash scripts/deploy.sh --update` from Mac
+- Pi path: /home/dash/home-display/
+- View from Mac browser: http://192.168.7.21:5173
+- Git repo: https://github.com/damdude/home-display (public)
+- Two systemd services: `home-display` (SvelteKit dev server, port 5173) and `home-display-kiosk` (Chromium kiosk)
+- Chromium kiosk MUST use `--ozone-platform=wayland` flag (critical — omitting it silently fails)
+
+## Tech stack
+- SvelteKit 2 + TypeScript + Svelte 5 runes ($state, $derived, $effect, $props)
+- Tailwind CSS (utility classes only — no custom config used heavily)
+- home-assistant-js-websocket for server-side HA WebSocket
+- Lucide Svelte for icons
+- HLS.js for camera streams (fullscreen only)
+
+## Design tokens (app.css)
+- Background: `#0A0A0C` (`--color-canvas`)
+- Surfaces: `#1A1A1F` (`--color-surface-1`), `#232328` (`--color-surface-2`)
+- Accents: sage `#6B9B7D` (safe/on), wheat `#A89876` (alert), deep red `#C66B6B` (triggered)
+- Music accent: `var(--color-accent-music)` (purple ~`#9B7BB5`)
+- Apple easing: `cubic-bezier(0.32, 0.72, 0, 1)` for all transitions
+- Type scale: clock 96px, hero 36–44px, body 22–26px (wall display viewing distance)
+
+## Architecture — data flow
+```
+HA WebSocket (server-side, authenticated)
+  → /api/ha SSE          → haStore (client reactive state)
+  → /api/zones SSE       → zonesStore (area/floor/entity registry)
+  → /api/camera/[entityId] → camera snapshot proxy
+  → /api/artwork?path=   → HA media proxy
+  → /api/ha/action POST  → service call proxy
+  → /api/music/browse POST → MA browse proxy
+```
+HA_TOKEN lives in `.env` only — never in client-side code.
+
+## Key files
+- `src/routes/+layout.svelte` — shell, SSE startup, screensaver trigger, status pills
+- `src/lib/stores/ha.svelte.ts` — reactive entity store, callHaService()
+- `src/lib/stores/musicState.svelte.ts` — active player resolution
+- `src/lib/stores/zonesStore.svelte.ts` — zone/floor registry from SSE
+- `src/lib/music/playerResolution.ts` — groups media_player entities, decodes capabilities
+- `src/lib/server/ha/connection.ts` — singleton HA WebSocket, broadcast to SSE subscribers
+- `src/lib/server/ha/zones.ts` — fetches area/device/entity/floor registries
+
+## Svelte 5 critical rules
+- NEVER use `state` as a variable or prop name — conflicts with `$state` rune
+- Event modifiers like `onclick|stopPropagation` are INVALID — use `onclick={(e) => { e.stopPropagation(); ... }}`
+- Props use `$props()`, reactive state uses `$state()`, derived uses `$derived()`
+- Stores are reactive objects with getters, not Svelte 3 writable() stores
+
+## ProgressBar prop name
+The `ProgressBar` component uses `playbackState` (NOT `state`) as the prop name for the player state string. This was renamed to avoid the Svelte 5 `$state` rune conflict. All callers must pass `playbackState={...}`.
+
+## Home Assistant setup
+- HAOS on TrueNAS SCALE VM, HA Core 2026.5.4
+- 5 Eufy cameras (Cam 2C / 2C Pro) via HomeBase 2 → RTSP → Generic Camera integration
+  - RTSP format: `rtsp://USER:PASS@192.168.7.234/liveN`
+- Wyze Doorbell v1 — deferred (DTLS handshake failures with Wyze Bridge)
+- Music Assistant Server add-on installed, Radio Browser + Google Cast + AirPlay providers
+- Ecobee thermostat at `climate.living_room_thermostat`
+
+## Media player entities (Music tab)
+Resolution pattern: group by friendly_name, prefer MA-managed (`mass_player_type` attribute) as control entity, AirPlay receivers (`com.apple.TV` app_id) as state-only.
+
+| Entity | Role | Display name |
+|---|---|---|
+| `media_player.maindoor_speaker_2` | MA control | Maindoor Speaker |
+| `media_player.second_speaker_2` | MA control | Second Speaker |
+| `media_player.bbox` | MA control | Apple TV |
+| `media_player.bbox_3` | AirPlay state-only | — |
+| `media_player.nritya_kala_kendra` | Hidden (unpaired) | — |
+| `media_player.tmacbook` | Hidden | — |
+| `media_player.music_assistant` | Hidden | — |
+
+## Zone/area setup
+Floors: Ground Floor (`ground_floor`), 1st Floor (`1st_floor`)
+
+| Area ID | Floor | Devices |
+|---|---|---|
+| `living_room` | ground | Ecobee thermostat, Maindoor Speaker, Apple TV (BBOX) |
+| `kids_room` | 1st | Second Speaker |
+| `outdoor` | (none) | Outdoor lights switch, 5 Eufy cameras |
+| `home` | (none) | Security system (Envisalink/DSC), alarm panel |
+| `garage` | ground | NRITYA KALA KENDRA (hidden — Apple TV, unpaired) |
+| `kitchen`, `master_room`, etc. | various | Empty — no devices yet |
+
+HIDDEN_AREA_IDS = ['garage'] in zonesStore.
+
+## Phases complete
+- Phase 0: SvelteKit scaffold, HA WebSocket, systemd kiosk
+- Phase 1: Home tab — clock, weather, calendar, climate tile, sensor pills, now-playing tile, quick actions
+- Phase 1b: Live HA data via server-side WebSocket + SSE
+- Phase 2: Bottom nav routing with crossfade transitions
+- Phase 3: Security tab — adaptive camera grid (1–6 cameras), snapshot refresh, fullscreen HLS, alarm panel, recent activity
+- Phase 4: Zones tab — floor-grouped zone cards, chip-based device controls, climate inline expand, camera overlay
+- Phase 5: Music tab — Apple Music-style full player, CarPlay mini player on Home tab, shared CastPicker, Music Screensaver
+
+## Phases remaining
+- Phase 6: General screensaver (B&W time/weather when idle, no music)
+- Phase 7: Admin login + per-instance device permissions
+- Phase 8: Polish (animations, error states, offline handling)
+- Phase 9: Production hardening (Waveshare DSI display, touch calibration, auto-recovery)
+
+## Known deferred items
+- Wyze Doorbell v1 integration (DTLS handshake fails with current firmware)
+- Second Apple TV (NRITYA KALA KENDRA) — needs remote to enter pairing PIN
+- HLS streaming in Security tab fullscreen (TODO Phase 3b — M3U8 proxy needed)
+- Multi-speaker grouping in CastPicker (bitmask supports it, UI not wired)
+- Daily Mix quick start tile (greyed — needs MA playlist integration)
+
+## Security notes
+- HA_TOKEN never in client code — all proxied through /api/* server routes
+- Camera proxy validates entity_id starts with 'camera.'
+- Artwork proxy validates path starts with '/'
+- Action proxy has domain allowlist (media_player, climate, switch, light, alarm_control_panel, cover, fan, input_boolean, scene, script, automation)
+- Camera proxy has 500ms rate limit per entity
+- TRIGGERED_DEMO must be false in production

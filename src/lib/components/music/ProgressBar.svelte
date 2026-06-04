@@ -3,13 +3,13 @@
     position:          number | null;
     duration:          number | null;
     positionUpdatedAt: number | null;
-    state:             string;
+    playbackState:     string;
     canSeek:           boolean;
     large?:            boolean;
     onSeek?:           (seconds: number) => void;
   }
   let {
-    position, duration, positionUpdatedAt, state,
+    position, duration, positionUpdatedAt, playbackState,
     canSeek, large = false, onSeek,
   }: Props = $props();
 
@@ -19,7 +19,7 @@
 
   $effect(() => {
     clearInterval(ticker);
-    if (state === 'playing' && position != null && positionUpdatedAt != null) {
+    if (playbackState === 'playing' && position != null && positionUpdatedAt != null) {
       const p = position, ref = positionUpdatedAt, cap = duration ?? Infinity;
       const tick = () => { livePos = Math.min(p + (Date.now() - ref) / 1000, cap); };
       tick();

@@ -105,7 +105,7 @@
         position={player!.media.position}
         duration={player!.media.duration}
         positionUpdatedAt={player!.media.positionUpdatedAt}
-        state={player!.state}
+        playbackState={player!.state}
         canSeek={player!.caps.canSeek}
         onSeek={(s) => mp('media_seek', { seek_position: s })}
       />
@@ -115,7 +115,7 @@
   <!-- ── 4. Transport ───────────────────────────────────────────────────── -->
   <div class="zone zone-transport" style:opacity={idleOpacity} style:pointer-events={isActive ? 'auto' : 'none'}>
     <MusicTransport
-      state={player?.state ?? 'off'}
+      playbackState={player?.state ?? 'off'}
       caps={player?.caps ?? {
         canPlay:false,canPause:false,canStop:false,canSeek:false,
         canPrevious:false,canNext:false,canVolume:false,canMute:false,

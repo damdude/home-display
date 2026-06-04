@@ -18,6 +18,10 @@ import { env } from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Simple in-memory rate limiter — max 1 request per 500ms per entity
+const rateLimitMap = new Map<string, number>();
+const RATE_LIMIT_MS = 500;
+
 export const GET: RequestHandler = async ({ params }) => {
   const { entityId } = params;
 
@@ -31,6 +35,14 @@ export const GET: RequestHandler = async ({ params }) => {
   if (!haUrl || !haToken) {
     error(500, 'HA_URL and HA_TOKEN must be set in .env');
   }
+
+  // Rate limit: reject if same entity was fetched < 500ms ago
+  const lastFetch = rateLimitMap.get(entityId) ?? 0;
+  const now = Date.now();
+  if (now - lastFetch < RATE_LIMIT_MS) {
+    error(429, 'Rate limited — use cached snapshot');
+  }
+  rateLimitMap.set(entityId, now);
 
   const snapshotUrl = `${haUrl}/api/camera_proxy/${entityId}`;
 

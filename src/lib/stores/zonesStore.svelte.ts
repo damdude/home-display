@@ -36,7 +36,7 @@ export interface ZoneRegistry {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const HIDDEN_AREA_IDS = new Set(['garage', 'nritya_kala_kendra']);
+const HIDDEN_AREA_IDS = new Set(['garage']);
 const FLOOR_ORDER     = ['ground_floor', '1st_floor'];
 
 // ── Reactive state ────────────────────────────────────────────────────────────
