@@ -4,10 +4,11 @@
 
   interface Props {
     playbackState: string;
-    caps:    PlayerCaps;
-    shuffle: boolean;
-    repeat:  'off' | 'one' | 'all';
-    large?:  boolean;
+    caps:      PlayerCaps;
+    shuffle:   boolean;
+    repeat:    'off' | 'one' | 'all';
+    disabled?: boolean;  // when true, all buttons are non-interactive (external session)
+    large?:    boolean;
     onPlay?:          () => void;
     onPause?:         () => void;
     onPrevious?:      () => void;
@@ -16,7 +17,7 @@
     onRepeatCycle?:   () => void;
   }
   let {
-    playbackState, caps, shuffle, repeat, large = false,
+    playbackState, caps, shuffle, repeat, disabled = false, large = false,
     onPlay, onPause, onPrevious, onNext, onShuffleToggle, onRepeatCycle,
   }: Props = $props();
 
@@ -29,7 +30,8 @@
   {#if caps.canShuffle}
     <button
       class="side-btn"
-      class:active={shuffle}
+      class:active={shuffle && !disabled}
+      disabled={disabled}
       onclick={onShuffleToggle}
       aria-label="Toggle shuffle"
     >
@@ -41,7 +43,7 @@
 
   <!-- Previous -->
   {#if caps.canPrevious}
-    <button class="skip-btn" onclick={onPrevious} aria-label="Previous track">
+    <button class="skip-btn" disabled={disabled} onclick={onPrevious} aria-label="Previous track">
       <SkipBack size={large ? 42 : 32} strokeWidth={1.5} />
     </button>
   {:else}
@@ -54,6 +56,7 @@
   <!-- Play / Pause -->
   <button
     class="play-btn"
+    disabled={disabled}
     onclick={isPlaying ? onPause : onPlay}
     aria-label={isPlaying ? 'Pause' : 'Play'}
   >
@@ -66,7 +69,7 @@
 
   <!-- Next -->
   {#if caps.canNext}
-    <button class="skip-btn" onclick={onNext} aria-label="Next track">
+    <button class="skip-btn" disabled={disabled} onclick={onNext} aria-label="Next track">
       <SkipForward size={large ? 42 : 32} strokeWidth={1.5} />
     </button>
   {:else}
@@ -79,7 +82,8 @@
   {#if caps.canRepeat}
     <button
       class="side-btn"
-      class:active={repeat !== 'off'}
+      class:active={repeat !== 'off' && !disabled}
+      disabled={disabled}
       onclick={onRepeatCycle}
       aria-label="Cycle repeat"
     >

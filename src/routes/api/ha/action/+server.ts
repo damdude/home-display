@@ -14,6 +14,7 @@
  */
 import { json, error } from '@sveltejs/kit';
 import { callService } from '$lib/server/ha/connection.js';
+import { startEntry, resolveEntry } from '$lib/server/ha/actionLog.js';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -41,21 +42,27 @@ export const POST: RequestHandler = async ({ request }) => {
   const ALLOWED_DOMAINS = new Set([
     'media_player', 'climate', 'switch', 'light',
     'alarm_control_panel', 'cover', 'fan', 'input_boolean',
-    'scene', 'script', 'automation',
+    'scene', 'script', 'automation', 'music_assistant',
   ]);
 
   if (!ALLOWED_DOMAINS.has(domain)) {
     error(400, `Domain '${domain}' is not permitted`);
   }
 
+  const startMs = Date.now();
+  const entry   = startEntry(domain, service, serviceData as Record<string, unknown>);
+
   try {
     await callService(domain, service, serviceData);
+    resolveEntry(entry, 204, 'ok', null, startMs);
     return new Response(null, { status: 204 });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes('not connected')) {
+      resolveEntry(entry, 503, 'not_connected', msg, startMs);
       error(503, 'Home Assistant is not connected');
     }
+    resolveEntry(entry, 500, 'ha_error', msg, startMs);
     error(500, `Service call failed: ${msg}`);
   }
 };

@@ -2,18 +2,20 @@
   import '../app.css';
   import { onMount }  from 'svelte';
   import { fade }     from 'svelte/transition';
-  import { cubicOut } from 'svelte/easing';
   import { page }     from '$app/stores';
   import type { Snippet } from 'svelte';
   import TopStrip         from '$lib/components/TopStrip.svelte';
   import StatusPillRow    from '$lib/components/StatusPillRow.svelte';
   import BottomNav        from '$lib/components/BottomNav.svelte';
   import MusicScreensaver from '$lib/components/music/MusicScreensaver.svelte';
+  import QrScreen         from '$lib/components/setup/QrScreen.svelte';
+  import SetupWizard      from '$lib/components/setup/SetupWizard.svelte';
   import { startHaStream }       from '$lib/stores/ha.svelte.js';
   import { startZonesStream }    from '$lib/stores/zonesStore.svelte.js';
   import { haStore }             from '$lib/stores/ha.svelte.js';
   import { musicState }          from '$lib/stores/musicState.svelte.js';
   import { idleState, startIdleDetection } from '$lib/stores/idleDetection.svelte.js';
+  import { configStore }         from '$lib/stores/configStore.svelte.js';
 
   import {
     alarmSecurityPartition1,
@@ -30,27 +32,53 @@
 
   let { children }: { children: Snippet } = $props();
 
-  // ── HA stream + idle detection ─────────────────────────────────────────────
-  onMount(() => {
-    const stopHa    = startHaStream();
-    const stopIdle  = startIdleDetection();
-    const stopZones = startZonesStream();
-    return () => { stopHa(); stopIdle(); stopZones(); };
+  let configLoaded = $state(false);
+  let _stopHa:    (() => void) | undefined;
+  let _stopIdle:  (() => void) | undefined;
+  let _stopZones: (() => void) | undefined;
+
+  let haTokenSet  = $derived(configStore.haTokenSet());
+  let isSetupDone = $derived(configStore.isSetupDone());
+  
+  // CRITICAL: Skip ALL kiosk logic if on /setup route
+  let isSetupRoute = $derived($page.url.pathname === '/setup');
+
+  onMount(async () => {
+    try {
+      const res = await fetch('/api/config');
+      if (res.ok) configStore.set(await res.json());
+    } catch { /* server may be starting */ }
+
+    configLoaded = true;
+
+    if (configStore.haTokenSet()) {
+      // Start HA + zones streams as soon as we have credentials (wizard needs entity data)
+      _stopHa    = startHaStream();
+      _stopZones = startZonesStream();
+
+      // Start idle detection only when fully set up (no screensaver during wizard)
+      if (configStore.isSetupDone()) {
+        _stopIdle = startIdleDetection();
+      }
+    }
+
+    return () => { _stopHa?.(); _stopIdle?.(); _stopZones?.(); };
   });
 
-  // ── Screensaver trigger ─────────────────────────────────────────────────────
-  // Show when: user idle AND at least one media_player is "playing"
-  let showScreensaver = $derived(
-    idleState.isIdle && musicState.active?.state === 'playing',
+  function handleWizardComplete() {
+    // Config saved — isSetupDone will flip to true
+  }
+
+  let showScreensaver = $derived(isSetupDone && idleState.isIdle);
+  let screensaverHasMusic = $derived(
+    musicState.active?.state === 'playing' || musicState.active?.state === 'paused',
   );
 
-  // Remember the section the user was on so we can return after dismissal
   let sectionBeforeScreensaver = $state($page.url.pathname);
   $effect(() => {
     if (!showScreensaver) sectionBeforeScreensaver = $page.url.pathname;
   });
 
-  // ── Entity ID constants (shared with +page.svelte) ──────────────────────────
   const EID = {
     alarm:     'alarm_control_panel.security_partition_1',
     mainDoor:  'binary_sensor.main_door',
@@ -62,7 +90,6 @@
 
   function entity(id: string) { return haStore.entities[id]; }
 
-  // ── Alarm pill ──────────────────────────────────────────────────────────────
   let alarmEntity = $derived(entity(EID.alarm));
   let alarm = $derived<AlarmState>({
     state: TRIGGERED_DEMO
@@ -93,7 +120,6 @@
     return { id: 'security', label: 'Security', ...m };
   }
 
-  // ── Door pills ──────────────────────────────────────────────────────────────
   function doorState(id: string, fallback: BinarySensorState): 'on' | 'off' {
     const s = entity(id)?.state;
     return (s === 'on' || s === 'off') ? s : fallback.state;
@@ -110,10 +136,8 @@
     };
   }
 
-  // ── Lights pill ─────────────────────────────────────────────────────────────
   let lightsOn = $derived(entity(EID.lights)?.state === 'on');
 
-  // ── Combined pills (global, visible on all sections) ───────────────────────
   let pills = $derived<PillDescriptor[]>([
     alarmPill(),
     doorPill('main-door',   'Main Door',            doorState(EID.mainDoor,   binarySensorMainDoor)),
@@ -131,76 +155,100 @@
   ]);
 </script>
 
-<div class="layout">
-  <!-- Shared header: clock + greeting + bell + theme toggle -->
-  <header class="shell-header">
-    <!-- TODO: make this configurable via .env DISPLAY_LOCATION -->
-    <TopStrip haConnected={haStore.connected} locationLabel="Master Bathroom" />
-  </header>
+<!-- If on /setup route, ONLY render the slot (skip all kiosk logic) -->
+{#if isSetupRoute}
+  <slot />
+{:else}
+  <!-- Setup overlays: QR on kiosk (first boot), then wizard (after token) -->
+  {#if configLoaded && !haTokenSet}
+    <QrScreen />
+  {:else if configLoaded && haTokenSet && !isSetupDone}
+    <SetupWizard onComplete={handleWizardComplete} />
+  {/if}
 
-  <!-- Global status pill row — visible on every section -->
-  <div class="shell-pills">
+  <!-- Main dashboard layout (only when setup complete) -->
+  <div class="layout" class:hidden={!configLoaded || !isSetupDone}>
+    <header class="shell-header">
+      <TopStrip
+        haConnected={haStore.connected}
+        locationLabel={configStore.display.locationLabel || 'Master Bathroom'}
+      />
+    </header>
+
     <StatusPillRow {pills} />
+
+    <main class="shell-main">
+      <slot />
+    </main>
+
+    <BottomNav tabs={configStore.tabs} />
   </div>
 
-  <!-- Per-section content with opacity crossfade on route change -->
-  <main class="content">
-    {#key $page.url.pathname}
-      <div
-        class="route-fade"
-        in:fade={{ duration: 300, delay: 200, easing: cubicOut }}
-        out:fade={{ duration: 200, easing: cubicOut }}
-      >
-        {@render children()}
-      </div>
-    {/key}
-  </main>
-
-  <BottomNav />
-</div>
-
-<!-- Music screensaver — fixed overlay above everything else (z-index 200) -->
-{#if showScreensaver && musicState.active}
-  <MusicScreensaver
-    player={musicState.active}
-    onClose={() => {
-      // Dismiss: reset idle timer by simulating user activity
-      window.dispatchEvent(new MouseEvent('mousemove'));
-    }}
-  />
+  <!-- Screensaver overlay -->
+  {#if showScreensaver}
+    <div transition:fade={{ duration: 400 }}>
+      <MusicScreensaver
+        player={screensaverHasMusic ? musicState.active : null}
+        locationLabel={configStore.display.locationLabel || 'Master Bathroom'}
+        temperature={haStore.entities['sensor.living_room_thermostat_current_temperature']?.state ?? null}
+        calendarEvents={haStore.calendarEvents ?? []}
+        onClose={() => {
+          window.dispatchEvent(new MouseEvent('mousemove'));
+          if (sectionBeforeScreensaver && sectionBeforeScreensaver !== $page.url.pathname) {
+            window.history.pushState(null, '', sectionBeforeScreensaver);
+          }
+        }}
+      />
+    </div>
+  {/if}
 {/if}
 
 <style>
+  :global(:root) {
+    --color-canvas: #0a0a0c;
+    --color-surface-1: #1a1a1f;
+    --color-surface-2: #232328;
+    --color-text-primary: #ffffff;
+    --color-text-secondary: rgba(255, 255, 255, 0.65);
+    --color-text-tertiary: rgba(255, 255, 255, 0.45);
+    --color-accent-music: #9b7bb5;
+    --color-accent-safe: #6b9b7d;
+    --color-accent-triggered: #d67c7c;
+    --color-accent-alert: #f0b96f;
+    --color-accent-light: #f0d96f;
+    --color-accent-neutral: rgba(255, 255, 255, 0.25);
+  }
+
+  :global(body) {
+    margin: 0;
+    background-color: var(--color-canvas);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   .layout {
-    display: grid;
-    grid-template-rows: auto auto 1fr auto;
-    height: 100vh;
-    width: 100%;
-    overflow: hidden;
-    background: var(--color-canvas);
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    opacity: 1;
+    transition: opacity 300ms ease;
   }
 
-  /* Shared header — matches the padding Home uses */
+  .layout.hidden {
+    display: none;
+  }
+
   .shell-header {
-    padding: clamp(6px, 0.6vh, 10px) 5vw 0;
+    flex-shrink: 0;
+    padding: clamp(12px, 1.5vh, 20px) clamp(16px, 2vw, 32px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
-  /* Pill row — same horizontal edges as tiles */
-  .shell-pills {
-    padding: clamp(3px, 0.4vh, 6px) 5vw 0;
-    overflow: visible;
-  }
-
-  /* Per-section content area */
-  .content {
+  .shell-main {
+    flex: 1;
     overflow: hidden;
-    min-height: 0;
-    position: relative;
-  }
-
-  /* Crossfade wrapper — fills the content area */
-  .route-fade {
-    position: absolute;
-    inset: 0;
+    display: flex;
+    flex-direction: column;
   }
 </style>

@@ -17,7 +17,6 @@
  * alive through proxies and idle-connection timeouts.
  */
 import { env } from '$env/dynamic/private';
-import { error } from '@sveltejs/kit';
 import { subscribe } from '$lib/server/ha/connection.js';
 import { startForecastRefresh }  from '$lib/server/ha/forecast.js';
 import { startCalendarRefresh }  from '$lib/server/ha/calendar.js';
@@ -28,9 +27,10 @@ startForecastRefresh();
 startCalendarRefresh();
 
 export const GET: RequestHandler = () => {
-  if (!env.HA_URL || !env.HA_TOKEN) {
-    error(500, 'HA_URL and HA_TOKEN must be set in .env');
-  }
+  // During setup mode, HA_URL / HA_TOKEN may not yet be in .env.
+  // In that case we still open the SSE stream so the client can connect,
+  // but we send a 'setup_required' status instead of entity data.
+  const haConfigured = !!(env.HA_URL && env.HA_TOKEN);
 
   let unsub: (() => void) | undefined;
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
@@ -53,9 +53,13 @@ export const GET: RequestHandler = () => {
         } catch (_) {}
       }
 
-      // Subscribe to the singleton — immediately delivers current state,
-      // then streams all subsequent events
-      unsub = subscribe(send);
+      if (haConfigured) {
+        // Normal: subscribe to singleton HA connection
+        unsub = subscribe(send);
+      } else {
+        // Setup mode: tell the client we're waiting for credentials
+        send({ type: 'status', connected: false });
+      }
 
       // Heartbeat every 15 s to keep connection alive through proxies
       heartbeatTimer = setInterval(sendHeartbeat, 15_000);

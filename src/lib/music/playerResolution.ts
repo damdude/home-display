@@ -194,6 +194,11 @@ export function resolveMediaPlayers(entities: HassEntities): ResolvedPlayer[] {
     const sf = Number(controlEnt.attributes?.supported_features ?? 0);
     result.push({
       name, controlId, stateId,
+      // NOTE: stateId is for reading metadata/state only (the group member
+      // currently in 'playing' state with the freshest position timestamp).
+      // ALL service calls (play/pause/seek/volume/skip) MUST use controlId.
+      // controlId is always the MA-managed entity; MA routes commands to the
+      // underlying Cast session correctly regardless of how it was started.
       isMaManaged: isMa(controlEnt),
       caps:  decodeCaps(sf),
       state: stateEnt.state !== 'unavailable' ? stateEnt.state : controlEnt.state,

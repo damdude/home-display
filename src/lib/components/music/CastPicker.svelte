@@ -6,7 +6,7 @@
    */
   import { fly, fade }    from 'svelte/transition';
   import { cubicOut }     from 'svelte/easing';
-  import { Speaker, Tv2, Music2, LayoutGrid } from 'lucide-svelte';
+  import { Speaker, Tv2, Music2, LayoutGrid, Check } from 'lucide-svelte';
   import { musicState }    from '$lib/stores/musicState.svelte.js';
   import { callHaService } from '$lib/stores/ha.svelte.js';
   import type { ResolvedPlayer } from '$lib/music/playerResolution.js';
@@ -67,43 +67,91 @@
   });
 
   /**
-   * Single-tap: transfer playback exclusively to this speaker.
-   * If already the only selection, tapping again does nothing.
+   * Tap to add/remove from selection. Changes are staged until Done is tapped.
    */
   function toggleSpeaker(id: string) {
-    if (selectedIds.has(id) && selectedIds.size === 1) {
-      // Already the only active speaker — no-op
-      return;
-    }
-    if (selectedIds.has(id) && selectedIds.size > 1) {
-      // Deselect from a group
-      const next = new Set(selectedIds);
-      next.delete(id);
-      selectedIds = next;
-      applySelection();
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      // Can't deselect the last speaker
+      if (next.size > 1) next.delete(id);
     } else {
-      // Transfer: clear all others, play on this speaker exclusively
-      selectedIds = new Set([id]);
-      applySelection();
+      next.add(id);
     }
+    selectedIds = next;
+    // Selection is staged — applySelection() is called from handleDone()
   }
+
+  // ── Connecting state — shown while Cast resync is in progress ────────────
+  let connecting     = $state(false);
+  let connectingId   = $state<string | null>(null);
+  let connectTimer:    ReturnType<typeof setTimeout>;
+
+  // Clear connecting once the target player reaches 'playing'
+  $effect(() => {
+    const target = musicState.players.find(p => p.controlId === connectingId);
+    if (target?.state === 'playing') {
+      connecting   = false;
+      connectingId = null;
+    }
+  });
 
   function applySelection() {
     const ids = [...selectedIds].filter(Boolean);
     if (!ids.length) return;
 
+    const activePlayer = musicState.active;
+    const activeId     = activePlayer?.controlId;
+
     if (ids.length === 1) {
-      // Single speaker: transfer playback
-      callHaService('media_player', 'media_play', { entity_id: ids[0] });
-      musicState.setActive(ids[0]);
+      const targetId = ids[0];
+      musicState.setActive(targetId);
+
+      // Only act if the target is actually different from the current speaker
+      if (activeId && activeId !== targetId) {
+        connecting   = true;
+        connectingId = targetId;
+        clearTimeout(connectTimer);
+        connectTimer = setTimeout(() => {
+          connecting   = false;
+          connectingId = null;
+        }, 5_000);
+
+        // Transfer: stop source so it releases the session, then start target.
+        // media_player.media_play on an MA entity resumes that speaker's queue.
+        // For externally-started streams (voice Spotify/Amazon Music), this is
+        // the best HA can do — there is no native Cast "transfer" API.
+        callHaService('media_player', 'media_stop', { entity_id: activeId });
+        callHaService('media_player', 'media_play', { entity_id: targetId });
+      }
     } else {
-      // Multi-speaker: group
+      // ── Group ──────────────────────────────────────────────────────────────
+      // Keep the currently-playing/paused speaker as the group primary so its
+      // audio continues uninterrupted; the others join it.
+      const primary = (activeId && ids.includes(activeId)) ? activeId : ids[0];
+      const others  = ids.filter(id => id !== primary);
+      musicState.setActive(primary);
+
+      connecting   = true;
+      connectingId = primary;
+      clearTimeout(connectTimer);
+      connectTimer = setTimeout(() => {
+        connecting   = false;
+        connectingId = null;
+      }, 6_000);
+
+      // media_player.join tells MA/Cast to create a multi-room group.
+      // Always apply regardless of playing state so users can prep a group
+      // while paused and press play to start both speakers simultaneously.
       callHaService('media_player', 'join', {
-        entity_id:     ids[0],
-        group_members: ids.slice(1),
+        entity_id:     primary,
+        group_members: others,
       });
-      musicState.setActive(ids[0]);
     }
+  }
+
+  function handleDone() {
+    applySelection();
+    onClose();
   }
 
   function selectAll() {
@@ -112,7 +160,7 @@
       ...ALL_IDS,
     ])].filter(Boolean);
     selectedIds = new Set(allIds);
-    applySelection();
+    // Staged — applied when Done is tapped
   }
 
   let active = $derived(musicState.active);
@@ -166,7 +214,7 @@
         {/if}
       </div>
 
-      <button class="done-btn" onclick={onClose} aria-label="Done">Done</button>
+      <button class="done-btn" onclick={handleDone} aria-label="Done">Done</button>
     </div>
 
     <div class="divider"></div>
@@ -186,6 +234,9 @@
           aria-pressed={isSelected}
           aria-label={entry.label}
         >
+          <!-- Volume fill bar — behind content -->
+          <div class="vol-fill" style:width="{volPct(sp)}%"></div>
+
           <!-- Icon box -->
           <span class="icon-box">
             <entry.icon size={20} strokeWidth={1.5} />
@@ -199,19 +250,16 @@
             {/if}
           </span>
 
-          <!-- Radio button -->
-          <span class="radio" class:checked={isSelected}>
-            {#if isSelected}
-              <svg width="24" height="24" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="11" fill="var(--color-accent-music)" />
-                <path d="M7 12l3.5 3.5L17 8.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-              </svg>
-            {:else}
-              <svg width="24" height="24" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1.5"/>
-              </svg>
-            {/if}
-          </span>
+          <!-- Connecting / check indicator -->
+          {#if connecting && connectingId === entry.id}
+            <span class="connecting-dot"></span>
+          {:else if isSelected}
+            <span class="check-icon">
+              <Check size={20} strokeWidth={2.5} color="var(--color-accent-music)" />
+            </span>
+          {:else}
+            <span class="check-icon empty"></span>
+          {/if}
         </button>
       {/each}
 
@@ -326,6 +374,7 @@
 
   /* Speaker row */
   .speaker-row {
+    position: relative; overflow: hidden;
     display: flex; align-items: center; gap: 14px;
     padding: 16px 14px; border-radius: 14px;
     background: rgba(255,255,255,0.04);
@@ -340,6 +389,15 @@
   }
   .speaker-row:not(.selected):active {
     background: rgba(255,255,255,0.07);
+  }
+
+  /* Volume fill bar — absolute behind content */
+  .vol-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: color-mix(in srgb, var(--color-accent-music) 18%, transparent);
+    border-radius: inherit;
+    pointer-events: none;
+    transition: width 600ms ease;
   }
 
   /* Icon box */
@@ -370,11 +428,24 @@
     font-size: clamp(11px, 1vw, 14px); color: var(--color-text-tertiary); opacity: 0.7;
   }
 
-  /* Radio indicator */
-  .radio {
-    flex-shrink: 0;
+  /* Check indicator */
+  .check-icon {
+    flex-shrink: 0; position: relative;
     display: flex; align-items: center; justify-content: center;
     width: 24px; height: 24px;
+  }
+  .check-icon.empty { /* spacer when not selected — keeps layout stable */ }
+
+  /* Connecting indicator — pulsing dot while Cast resyncs */
+  .connecting-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--color-accent-music);
+    flex-shrink: 0;
+    animation: connecting-pulse 1s ease-in-out infinite;
+  }
+  @keyframes connecting-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.8); }
+    50%       { opacity: 1;   transform: scale(1.1); }
   }
 
   .show-more {

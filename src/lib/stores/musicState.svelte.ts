@@ -10,7 +10,8 @@
  * Active-player priority:
  *   1. Explicitly selected via setActive() (persists until user picks again)
  *   2. Speaker currently in "playing" state with freshest metadata
- *   3. First resolved player (fallback when nothing is playing)
+ *   3. Speaker in "paused" state (first match)
+ *   4. null — never auto-selects idle/off speakers
  */
 
 import { haStore } from './ha.svelte.js';
@@ -30,15 +31,17 @@ function pickActive(players: ResolvedPlayer[]): ResolvedPlayer | null {
     _selectedId = null;
   }
 
-  // Prefer any player in 'playing' state, freshest position update first
+  // Auto-select only playing or paused — never idle/off/unavailable
   const playing = players
     .filter(p => p.state === 'playing')
     .sort((a, b) => (b.media.positionUpdatedAt ?? 0) - (a.media.positionUpdatedAt ?? 0));
-
   if (playing.length) return playing[0];
 
-  // Fallback: paused > idle > off (already sorted by resolveMediaPlayers via STATE_RANK)
-  return players[0] ?? null;
+  const paused = players.filter(p => p.state === 'paused');
+  if (paused.length) return paused[0];
+
+  // Nothing playing or paused — return null so UI shows "Nothing playing"
+  return null;
 }
 
 export const musicState = {
