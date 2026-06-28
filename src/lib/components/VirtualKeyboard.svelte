@@ -81,8 +81,8 @@
     height: clamp(40px, 5.5vh, 56px);
     padding: 0 clamp(4px, 0.5vw, 8px);
     border: 1px solid rgba(255,255,255,0.12);
-    background: var(--color-surface-1, #1a1a1f);
-    color: var(--color-text-primary, #fff);
+    background: #1a1a1a;
+    color: #fff;
     border-radius: 8px;
     font-size: clamp(13px, 1.3vw, 18px);
     font-weight: 500;
@@ -93,13 +93,13 @@
     display: flex; align-items: center; justify-content: center;
   }
 
-  .key:active   { background: var(--color-accent-music, #9b7bb5); transform: scale(0.93); }
+  .key:active   { background: rgba(255,255,255,0.25); transform: scale(0.93); }
   .key.wide     { flex: 1; max-width: clamp(160px, 30vw, 280px); }
   .key.medium   { min-width: clamp(56px, 7vw, 80px); }
 
   .key.active-caps {
-    background: var(--color-accent-music, #9b7bb5);
-    border-color: var(--color-accent-music, #9b7bb5);
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.4);
     color: #fff;
   }
 </style>

@@ -1,9 +1,9 @@
 <script lang="ts">
   interface Props {
-    roomName:  string;
-    tabs:      string[];
-    onLaunch:  () => void;
-    saving:    boolean;
+    roomName: string;
+    tabs:     string[];
+    onLaunch: () => void;
+    saving:   boolean;
   }
   let { roomName, tabs, onLaunch, saving }: Props = $props();
 
@@ -13,63 +13,85 @@
 </script>
 
 <div class="step">
-  <div class="hero">
-    <div class="checkmark">✓</div>
+  <div class="step-header">
     <h1>You're all set!</h1>
-    <p class="sub">
-      <strong>{roomName}</strong> dashboard configured with
-      {tabs.map(t => TAB_LABELS[t] ?? t).join(', ')} tabs.
-    </p>
+    <p>Your dashboard is configured and ready to launch.</p>
   </div>
 
-  <div class="launch-area">
-    <button class="launch-btn" disabled={saving} onclick={onLaunch}>
+  <div class="step-body">
+    <div class="hero">
+      <div class="checkmark">✓</div>
+      <p class="summary">
+        <strong>{roomName}</strong><br>
+        <span class="tabs-line">{tabs.map(t => TAB_LABELS[t] ?? t).join(' · ')}</span>
+      </p>
+      <p class="note">Settings can be changed any time from the gear icon.</p>
+    </div>
+  </div>
+
+  <div class="step-footer single">
+    <button class="btn btn-launch" disabled={saving} onclick={onLaunch}>
       {saving ? 'Saving…' : 'Launch Dashboard →'}
     </button>
-    <p class="note">You can change any of these settings later by long-pressing the dashboard header.</p>
   </div>
 </div>
 
 <style>
   .step {
     height: 100%; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    padding: clamp(24px, 4vh, 60px) clamp(24px, 5vw, 80px);
-    gap: clamp(36px, 5vh, 60px);
+    background: #000; color: #fff; isolation: isolate;
+  }
+
+  .step-header {
+    flex-shrink: 0;
+    padding: 44px 36px 20px;
     text-align: center;
   }
+  .step-header h1 { font-size: 46px; font-weight: 700; margin: 0; color: #fff; line-height: 1.15; }
+  .step-header p  { font-size: 20px; color: rgba(255,255,255,0.45); margin: 8px 0 0; }
 
-  .hero { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .step-body {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 16px 32px;
+  }
+
+  .hero {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 32px; text-align: center; max-width: 760px;
+  }
 
   .checkmark {
-    width: clamp(80px, 10vw, 120px); height: clamp(80px, 10vw, 120px);
+    width: 128px; height: 128px;
     border-radius: 50%;
-    background: color-mix(in srgb, var(--color-accent-safe) 20%, transparent);
-    border: 3px solid var(--color-accent-safe);
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.3);
     display: flex; align-items: center; justify-content: center;
-    font-size: clamp(36px, 4.5vw, 56px);
-    color: var(--color-accent-safe);
+    font-size: 64px; color: #fff;
   }
 
-  h1 { font-size: clamp(32px, 4.5vw, 60px); font-weight: 700; color: var(--color-text-primary); margin: 0; }
-
-  .sub {
-    font-size: clamp(16px, 1.8vw, 24px);
-    color: var(--color-text-secondary); margin: 0; max-width: 480px;
+  .summary {
+    font-size: 28px; color: rgba(255,255,255,0.55); margin: 0; line-height: 1.6;
   }
+  .summary strong { color: rgba(255,255,255,0.85); font-weight: 600; }
+  .tabs-line { font-size: 20px; color: rgba(255,255,255,0.35); }
 
-  .launch-area { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; max-width: 400px; }
+  .note { font-size: 18px; color: rgba(255,255,255,0.25); margin: 0; }
 
-  .launch-btn {
-    width: 100%; padding: clamp(16px, 2.2vh, 24px);
-    background: var(--color-accent-music); color: #fff;
-    border: none; border-radius: 14px;
-    font-size: clamp(18px, 2vw, 26px); font-weight: 700;
-    cursor: pointer; transition: opacity 150ms, transform 100ms;
+  .step-footer {
+    flex-shrink: 0; display: flex; gap: 16px;
+    padding: 24px 32px; background: #000;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .step-footer.single { justify-content: center; }
+
+  .btn {
+    padding: 28px 60px; border: none; border-radius: 18px;
+    font-size: 26px; font-weight: 700; cursor: pointer;
+    min-height: 92px; min-width: 380px;
+    transition: opacity 120ms, transform 100ms;
     -webkit-tap-highlight-color: transparent;
   }
-  .launch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .launch-btn:not(:disabled):active { transform: scale(0.97); }
-
-  .note { font-size: clamp(12px, 1.1vw, 15px); color: var(--color-text-tertiary); margin: 0; }
+  .btn-launch { background: #fff; color: #000; }
+  .btn-launch:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-launch:not(:disabled):active { transform: scale(0.98); opacity: 0.9; }
 </style>

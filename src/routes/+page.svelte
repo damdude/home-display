@@ -156,13 +156,13 @@
 
 <style>
   /* Home fills the content area; 5 zones in proportional rows */
+  /* Tuned for 800×1280 portrait (Waveshare 10.1" DSI) */
   .home {
-    height: 100%;
+    min-height: 100%;
     display: grid;
-    grid-template-rows: 15fr 11fr 15fr 10fr 16fr;
-    row-gap: clamp(5px, 0.7vh, 10px);
-    padding: clamp(4px, 0.5vh, 8px) 5vw clamp(4px, 0.4vh, 8px);
-    overflow: hidden;
+    grid-template-rows: 14fr 13fr 18fr 10fr 18fr;
+    row-gap: clamp(4px, 0.5vh, 8px);
+    padding: clamp(6px, 0.8vh, 12px) clamp(12px, 1.5vw, 20px);
     box-sizing: border-box;
   }
 

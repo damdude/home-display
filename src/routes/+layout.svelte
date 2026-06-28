@@ -69,6 +69,31 @@
     // Config saved — isSetupDone will flip to true
   }
 
+  // While the QR screen is showing, poll /api/config every 2s to detect when
+  // the phone submits the token. Server hot-reloads the WebSocket without
+  // restarting, so this page never reloads — we must poll to detect the change.
+  $effect(() => {
+    if (isSetupRoute) return;
+    if (!configLoaded) return;
+    if (haTokenSet) return;   // already have token — nothing to poll
+
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch('/api/config', { cache: 'no-store' });
+        if (!res.ok) return;
+        const cfg = await res.json();
+        if (cfg?.ha?.token) {
+          configStore.set(cfg);
+          if (!_stopHa)    _stopHa    = startHaStream();
+          if (!_stopZones) _stopZones = startZonesStream();
+          clearInterval(id);
+        }
+      } catch { /* server momentarily busy */ }
+    }, 2000);
+
+    return () => clearInterval(id);
+  });
+
   let showScreensaver = $derived(isSetupDone && idleState.isIdle);
   let screensaverHasMusic = $derived(
     musicState.active?.state === 'playing' || musicState.active?.state === 'paused',
@@ -173,9 +198,10 @@
         haConnected={haStore.connected}
         locationLabel={configStore.display.locationLabel || 'Master Bathroom'}
       />
+      <div class="pill-row-wrap">
+        <StatusPillRow {pills} />
+      </div>
     </header>
-
-    <StatusPillRow {pills} />
 
     <main class="shell-main">
       <slot />
@@ -231,24 +257,37 @@
     display: flex;
     flex-direction: column;
     height: 100dvh;
-    opacity: 1;
-    transition: opacity 300ms ease;
+    overflow: hidden;
   }
 
   .layout.hidden {
     display: none;
   }
 
+  /* Sticky header — stays pinned, content scrolls underneath */
   .shell-header {
     flex-shrink: 0;
-    padding: clamp(12px, 1.5vh, 20px) clamp(16px, 2vw, 32px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: clamp(10px, 1.2vh, 16px) clamp(14px, 1.8vw, 24px) 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-canvas);
   }
 
+  .pill-row-wrap {
+    padding-top: clamp(6px, 0.8vh, 10px);
+  }
+
+  /* Main content — scrollable, touch-friendly */
   .shell-main {
     flex: 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scrollbar-width: none;
   }
+
+  .shell-main::-webkit-scrollbar { display: none; }
 </style>

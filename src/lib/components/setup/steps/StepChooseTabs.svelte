@@ -9,18 +9,16 @@
   let { value = $bindable([]), onBack, onContinue }: Props = $props();
 
   const TABS = [
-    { id: 'home',     label: 'Home',     desc: 'Weather, calendar, climate, now playing', Icon: Home      },
-    { id: 'security', label: 'Security', desc: 'Cameras and alarm panel',                 Icon: Shield    },
-    { id: 'music',    label: 'Music',    desc: 'Full music player with Music Assistant',  Icon: Music2    },
+    { id: 'home',     label: 'Home',     desc: 'Weather, calendar, climate, now playing', Icon: Home       },
+    { id: 'security', label: 'Security', desc: 'Cameras and alarm panel',                 Icon: Shield     },
+    { id: 'music',    label: 'Music',    desc: 'Full music player with Music Assistant',  Icon: Music2     },
     { id: 'zones',    label: 'Zones',    desc: 'Room-by-room device controls',             Icon: LayoutGrid },
   ] as const;
 
   function toggle(id: string) {
     if (value.includes(id)) {
-      // Require at least one tab
       if (value.length > 1) value = value.filter(t => t !== id);
     } else {
-      // Maintain canonical order
       const order = ['home', 'security', 'music', 'zones'];
       value = order.filter(t => value.includes(t) || t === id);
     }
@@ -28,32 +26,32 @@
 </script>
 
 <div class="step">
-  <div class="header">
+  <div class="step-header">
     <h1>Which tabs do you want?</h1>
-    <p>You can change this later from the Settings tab.</p>
+    <p>You can change this later from Settings.</p>
   </div>
 
-  <div class="tab-list">
-    {#each TABS as { id, label, desc, Icon }}
-      {@const on = value.includes(id)}
-      <button class="tab-row" class:on onclick={() => toggle(id)}>
-        <span class="icon-wrap" class:on>
-          <Icon size={22} strokeWidth={1.6} />
-        </span>
-        <div class="tab-text">
-          <span class="tab-name">{label}</span>
-          <span class="tab-desc">{desc}</span>
-        </div>
-        <span class="check" class:on>
-          {#if on}✓{/if}
-        </span>
-      </button>
-    {/each}
+  <div class="step-body">
+    <div class="content-list">
+      {#each TABS as { id, label, desc, Icon }}
+        {@const on = value.includes(id)}
+        <button class="option-row" class:selected={on} onclick={() => toggle(id)}>
+          <span class="row-icon">
+            <Icon size={22} strokeWidth={1.6} />
+          </span>
+          <div class="row-text">
+            <span class="row-label">{label}</span>
+            <span class="row-desc">{desc}</span>
+          </div>
+          <span class="check" class:on>{on ? '✓' : ''}</span>
+        </button>
+      {/each}
+    </div>
   </div>
 
-  <div class="footer">
-    <button class="btn-ghost" onclick={onBack}>← Back</button>
-    <button class="btn-primary" disabled={!value.length} onclick={onContinue}>
+  <div class="step-footer">
+    <button class="btn btn-back" onclick={onBack}>← Back</button>
+    <button class="btn btn-continue" disabled={!value.length} onclick={onContinue}>
       Continue →
     </button>
   </div>
@@ -62,95 +60,84 @@
 <style>
   .step {
     height: 100%; display: flex; flex-direction: column;
-    padding: clamp(24px, 4vh, 48px) clamp(24px, 5vw, 60px);
-    gap: clamp(20px, 3vh, 36px);
+    background: #000; color: #fff; isolation: isolate;
   }
 
-  .header h1 {
-    font-size: clamp(28px, 3.5vw, 48px); font-weight: 700;
-    color: var(--color-text-primary); margin: 0 0 8px;
+  .step-header {
+    flex-shrink: 0; padding: 44px 36px 20px; text-align: center;
   }
-  .header p {
-    font-size: clamp(14px, 1.5vw, 20px);
-    color: var(--color-text-secondary); margin: 0;
+  .step-header h1 { font-size: 46px; font-weight: 700; margin: 0; color: #fff; line-height: 1.15; }
+  .step-header p  { font-size: 20px; color: rgba(255,255,255,0.45); margin: 8px 0 0; }
+
+  .step-body {
+    flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+    padding: 16px 32px; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    touch-action: pan-y; -webkit-user-select: none; user-select: none;
+    scrollbar-width: none;
+  }
+  .step-body::-webkit-scrollbar { display: none; }
+
+  .content-list {
+    display: flex; flex-direction: column; gap: 14px;
+    width: 100%; max-width: 760px;
   }
 
-  .tab-list {
-    display: flex; flex-direction: column; gap: 12px;
-    flex: 1; justify-content: center; max-width: 640px;
-  }
-
-  .tab-row {
+  .option-row {
     display: flex; align-items: center; gap: 16px;
-    padding: clamp(14px, 2vh, 22px) clamp(16px, 2vw, 24px);
-    border-radius: 16px;
+    padding: 28px 32px;
+    background: #111;
     border: 2px solid rgba(255,255,255,0.08);
-    background: var(--color-surface-1);
-    cursor: pointer; text-align: left; width: 100%;
-    transition: border-color 150ms, background 150ms;
+    border-radius: 18px;
+    color: rgba(255,255,255,0.45);
+    font-size: 28px; font-weight: 500;
+    cursor: pointer; text-align: left;
+    transition: background 120ms, border-color 120ms, color 120ms;
     -webkit-tap-highlight-color: transparent;
+    min-height: 92px; width: 100%;
   }
-  .tab-row.on {
-    border-color: var(--color-accent-music);
-    background: color-mix(in srgb, var(--color-accent-music) 12%, var(--color-surface-1));
+  .option-row.selected {
+    background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.4); color: #fff;
   }
-  .tab-row:active { transform: scale(0.99); }
+  .option-row:active { transform: scale(0.99); }
 
-  .icon-wrap {
-    width: 44px; height: 44px; border-radius: 12px;
-    background: rgba(255,255,255,0.06);
+  .row-icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: rgba(255,255,255,0.05);
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; color: var(--color-text-secondary);
+    flex-shrink: 0; color: rgba(255,255,255,0.35);
     transition: background 150ms, color 150ms;
   }
-  .icon-wrap.on {
-    background: color-mix(in srgb, var(--color-accent-music) 28%, transparent);
-    color: var(--color-accent-music);
-  }
+  .option-row.selected .row-icon { background: rgba(255,255,255,0.1); color: #fff; }
 
-  .tab-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-  .tab-name {
-    font-size: clamp(16px, 1.8vw, 22px); font-weight: 600;
-    color: var(--color-text-primary);
-  }
-  .tab-desc {
-    font-size: clamp(12px, 1.2vw, 16px);
-    color: var(--color-text-tertiary);
-  }
+  .row-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .row-label { font-size: 28px; font-weight: 600; }
+  .row-desc  { font-size: 18px; color: rgba(255,255,255,0.3); }
+  .option-row.selected .row-desc { color: rgba(255,255,255,0.5); }
 
   .check {
-    width: 28px; height: 28px; border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.2);
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.2);
     display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700; color: transparent;
-    flex-shrink: 0; transition: all 150ms;
+    font-size: 20px; font-weight: 700;
+    color: transparent; flex-shrink: 0; transition: all 150ms;
   }
-  .check.on {
-    background: var(--color-accent-music);
-    border-color: var(--color-accent-music);
-    color: #fff;
+  .check.on { background: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.9); color: #000; }
+
+  .step-footer {
+    flex-shrink: 0; display: flex; gap: 16px;
+    padding: 24px 32px; background: #000;
+    border-top: 1px solid rgba(255,255,255,0.07);
   }
 
-  .footer { display: flex; gap: 12px; margin-top: auto; }
-
-  .btn-primary {
-    flex: 2; padding: clamp(14px, 2vh, 20px);
-    background: var(--color-accent-music); color: #fff;
-    border: none; border-radius: 12px;
-    font-size: clamp(16px, 1.7vw, 22px); font-weight: 600;
-    cursor: pointer; transition: opacity 150ms, transform 100ms;
+  .btn {
+    flex: 1; padding: 28px; border: none; border-radius: 18px;
+    font-size: 26px; font-weight: 700; cursor: pointer;
+    min-height: 92px; transition: opacity 120ms, transform 100ms;
     -webkit-tap-highlight-color: transparent;
   }
-  .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
-  .btn-primary:not(:disabled):active { transform: scale(0.97); }
-
-  .btn-ghost {
-    flex: 1; padding: clamp(14px, 2vh, 20px);
-    background: rgba(255,255,255,0.07); color: var(--color-text-secondary);
-    border: none; border-radius: 12px;
-    font-size: clamp(16px, 1.7vw, 22px); font-weight: 500;
-    cursor: pointer; -webkit-tap-highlight-color: transparent;
-    transition: background 150ms;
-  }
-  .btn-ghost:active { background: rgba(255,255,255,0.12); }
+  .btn-back { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.55); }
+  .btn-back:active { background: rgba(255,255,255,0.12); }
+  .btn-continue { background: #fff; color: #000; }
+  .btn-continue:disabled { opacity: 0.25; cursor: not-allowed; }
+  .btn-continue:not(:disabled):active { transform: scale(0.98); }
 </style>

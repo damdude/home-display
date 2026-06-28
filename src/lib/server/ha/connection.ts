@@ -42,6 +42,11 @@ let cachedCalendarEvents: CalendarEvent[] = [];
 let cachedCalendarOverflow = 0;
 let cachedLocationName = '';
 
+// Runtime credential override — set by reconnectWithCredentials().
+// When present, these take priority over env.HA_URL / env.HA_TOKEN.
+let overrideUrl:   string | null = null;
+let overrideToken: string | null = null;
+
 const subscribers = new Set<(event: HaEvent) => void>();
 
 // ── Reconnect backoff ─────────────────────────────────────────────────────────
@@ -122,10 +127,10 @@ function startConnection(): void {
 }
 
 async function connect(): Promise<void> {
-  const haUrl   = env.HA_URL;
-  const haToken = env.HA_TOKEN;
+  const haUrl   = overrideUrl   ?? env.HA_URL;
+  const haToken = overrideToken ?? env.HA_TOKEN;
   if (!haUrl || !haToken) {
-    console.error('[HA] HA_URL or HA_TOKEN not set in .env — cannot connect');
+    console.error('[HA] No HA credentials available (env or override) — cannot connect');
     return;
   }
 
@@ -206,6 +211,47 @@ function scheduleReconnect(): void {
     void connect();
   }, reconnectDelay);
   reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT);
+}
+
+/**
+ * Hot-reload HA credentials WITHOUT restarting the process.
+ *
+ * Tears down any existing connection, clears cached state, sets the new
+ * credentials as overrides, and reconnects immediately. Used by the setup
+ * flow so the user never sees a service restart.
+ */
+export async function reconnectWithCredentials(url: string, token: string): Promise<boolean> {
+  console.log('[HA] reconnectWithCredentials — applying new credentials live');
+
+  // Cancel any pending reconnect
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  // Tear down existing connection
+  if (conn) {
+    try { (conn as Connection).close(); } catch { /* ignore */ }
+    conn = null;
+  }
+  isConnected = false;
+
+  // Reset state so next subscribeEntities delivers a fresh snapshot
+  currentEntities    = {};
+  cachedLocationName = '';
+  reconnectDelay     = 1_000;
+
+  // Apply overrides and allow a fresh connect
+  overrideUrl   = url;
+  overrideToken = token;
+  initCalled    = false;
+
+  broadcast({ type: 'status', connected: false });
+
+  // Connect now with the new credentials
+  await connect();
+
+  return isConnected;
 }
 
 // ── Service calls ─────────────────────────────────────────────────────────────

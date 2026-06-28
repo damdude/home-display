@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Sun, Moon, Bell } from 'lucide-svelte';
+  import { Sun, Moon, Bell, Settings } from 'lucide-svelte';
   import { goto } from '$app/navigation';
   import { zonesStore } from '$lib/stores/zonesStore.svelte.js';
+  import SettingsOverlay from '$lib/components/SettingsOverlay.svelte';
 
   // ── Props ────────────────────────────────────────────────────────────────────
   let {
@@ -45,6 +46,9 @@
   let unassignedCount = $derived(
     zonesStore.unassigned?.entities.length ?? 0
   );
+
+  // ── Settings overlay ─────────────────────────────────────────────────────────
+  let showSettings = $state(false);
 
   // ── Theme toggle ──────────────────────────────────────────────────────────────
   let theme = $state<'dark' | 'light'>('dark');
@@ -101,8 +105,20 @@
         <Sun size={20} strokeWidth={1.6} />
       {/if}
     </button>
+
+    <button
+      class="gear-btn"
+      onclick={() => showSettings = true}
+      aria-label="Settings"
+    >
+      <Settings size={20} strokeWidth={1.6} />
+    </button>
   </div>
 </div>
+
+{#if showSettings}
+  <SettingsOverlay onClose={() => showSettings = false} />
+{/if}
 
 <style>
   .strip {
@@ -241,6 +257,27 @@
 
   .theme-btn:active {
     background: var(--color-surface-3);
+    transform: scale(0.94);
+  }
+
+  /* ── Gear / Settings ── */
+  .gear-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: var(--color-surface-2);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 300ms cubic-bezier(0.32, 0.72, 0, 1);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .gear-btn:active {
+    background: var(--color-surface-3, rgba(255,255,255,0.12));
     transform: scale(0.94);
   }
 </style>

@@ -1,3 +1,53 @@
+# Project Status — Last Updated: 2026-06-14
+
+## Setup Flow (Phase 0 + 1) — Status
+
+### COMPLETE ✅
+- QR screen on boot when no config.json
+- /setup phone form (URL + token entry, black/white, big buttons)
+- HA token validation + systemd restart trigger
+- Setup page persists through Pi restart (sessionStorage + pageshow handler + polling)
+- Setup page: network error during token submit treated as success (restart-safe)
+- Kiosk transitions QR → Wizard after restart
+- Setup wizard shell (SetupWizard.svelte) with progress bar + loading spinner
+- Settings gear icon in TopStrip (Bell → Theme → Gear order)
+- SettingsOverlay: Refresh, Reboot, Factory Reset (double-tap confirm)
+- Reboot/Reset API endpoints (/api/settings/reboot, /api/settings/reset)
+- scripts/setup-sudoers.sh for passwordless reboot
+- configTempStore.ts (in-memory wizard state)
+- /api/setup/complete endpoint (writes config.json only on wizard completion)
+- Sticky header (TopStrip + StatusPillRow pinned, content scrolls under)
+- Touch-drag scroll on main content area (-webkit-overflow-scrolling: touch)
+- Home tab grid proportions tuned for 800×1280 portrait (14fr 13fr 18fr 10fr 18fr)
+- Setup wizard steps: all use step-header/step-body/step-footer layout, black/white only
+- Wizard flicker fix: step-inner absolute inside stable step-wrap (no layout shift during slide)
+- All step buttons: 22px font, 72px min-height, 700px max-width, fixed px (not vw-based)
+
+### IN PROGRESS / KNOWN ISSUES ⚠️
+- Dynamic dashboard from config (BottomNav from config.tabs, Home tab from config.widgets) — not wired yet
+
+### NOT STARTED ❌
+- Phase 6: General screensaver (B&W clock when idle, no music)
+- Phase 7: Admin login + per-instance permissions
+- Phase 8: Polish (animations, error states, offline handling)
+- Phase 9: Production hardening (Waveshare DSI touch calibration)
+- Widget reordering (long-press drag-and-drop)
+
+## Production Display
+- Waveshare 10.1" DSI at 1280×800, running portrait (800px wide × 1280px tall)
+- Previous: external 1440×2560 portrait monitor (retired)
+- Touch: works via DSI touchscreen, no mouse needed
+- All UI sizing now targets 800px wide viewport
+
+## Critical Rules
+- config.json ONLY written after full wizard completion (via /api/setup/complete)
+- HA token NEVER in client code — proxied via /api/* server routes
+- Setup wizard uses hardcoded black/white (#000/#fff/#111) — not CSS variables
+- Deploy ALWAYS via `bash scripts/deploy.sh --update` from Mac — never npm on Mac
+- TRIGGERED_DEMO must be false in production
+
+---
+
 # Home Display — Project Context
 
 ## What this is
