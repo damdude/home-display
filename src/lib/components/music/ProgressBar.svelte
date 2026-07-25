@@ -69,8 +69,8 @@
   >
     <!-- Unfilled track sits behind everything -->
     <div class="track"></div>
-    <!-- Filled portion -->
-    <div class="fill" style:width="{pct}%"></div>
+    <!-- Filled portion — animated via transform (compositor-only), not width -->
+    <div class="fill" style:transform="scaleX({Math.max(pct, 0) / 100})"></div>
     <!-- Thumb — always rendered when seekable, not just on drag -->
     {#if canSeek}
       <div class="thumb" style:left="{pct}%"></div>
@@ -102,12 +102,16 @@
     border-radius: 999px;
   }
 
-  /* Filled portion — on top of track */
+  /* Filled portion — on top of track. Uses transform: scaleX (GPU-composited)
+     instead of animating width, which would relayout every frame during the
+     1s position tick (this bar is on Home, Music, and the screensaver). */
   .fill {
-    position: absolute; left: 0; top: 0; height: 100%;
+    position: absolute; left: 0; top: 0; height: 100%; width: 100%;
+    transform-origin: left center;
+    transform: scaleX(0);
     background: var(--color-accent-music);
     border-radius: 999px;
-    transition: width 1s linear;
+    transition: transform 1s linear;
     pointer-events: none;
   }
 

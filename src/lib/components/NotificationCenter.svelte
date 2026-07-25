@@ -86,6 +86,7 @@
   .nc-panel {
     position: absolute; bottom: 0; left: 0; right: 0;
     max-height: 88vh;
+    will-change: transform;   /* only mounted while open → gesture-scoped */
     background: var(--color-surface-1);
     border-top-left-radius: 28px; border-top-right-radius: 28px;
     border: 1px solid var(--color-border);

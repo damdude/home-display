@@ -58,7 +58,7 @@
             <p class="empty">No camera entities found in Home Assistant.</p>
           {:else}
             <div class="check-list">
-              {#each cameraOpts as cam}
+              {#each cameraOpts as cam (cam.id)}
                 {@const on = cameras.includes(cam.id)}
                 <button class="option-row" class:selected={on} onclick={() => toggleCamera(cam.id)}>
                   <span class="row-label">{cam.name}</span>
@@ -78,7 +78,7 @@
           </div>
           <select bind:value={alarm}>
             <option value="">— none —</option>
-            {#each alarmOpts as a}<option value={a.id}>{a.name}</option>{/each}
+            {#each alarmOpts as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
           </select>
         </div>
 

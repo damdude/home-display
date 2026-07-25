@@ -67,7 +67,7 @@
       </div>
     {:else}
       <div class="content-list">
-        {#each allZones as zone}
+        {#each allZones as zone (zone.areaId)}
           {@const visible = !hiddenAreaIds.includes(zone.areaId)}
           <button class="option-row" class:selected={visible} onclick={() => toggle(zone.areaId)}>
             <div class="zone-text">

@@ -90,6 +90,7 @@
   .cc-panel {
     position: absolute; top: 0; left: 0; right: 0;
     max-height: 92vh; overflow-y: auto; scrollbar-width: none;
+    will-change: transform;   /* only mounted while open → gesture-scoped */
     background: var(--color-surface-1);
     border-bottom-left-radius: 28px; border-bottom-right-radius: 28px;
     border: 1px solid var(--color-border);

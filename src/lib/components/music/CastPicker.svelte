@@ -297,9 +297,11 @@
     max-height: 65vh;
     border-radius: 20px;
     z-index: 121;
+    /* Solid material fallback — the 0.97-opaque tint made blur(40px) invisible
+       yet it still cost real GPU time on the Pi 4. Blur is opt-in via .fx-blur. */
     background: rgba(28, 28, 32, 0.97);
-    backdrop-filter: blur(40px);
-    -webkit-backdrop-filter: blur(40px);
+    backdrop-filter: blur(var(--blur-thick));
+    -webkit-backdrop-filter: blur(var(--blur-thick));
     border: 1px solid rgba(255, 255, 255, 0.09);
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7);
     overflow: hidden;

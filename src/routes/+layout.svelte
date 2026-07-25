@@ -13,6 +13,7 @@
   import ChildLockOverlay    from '$lib/components/ChildLockOverlay.svelte';
   import GuestConfigSheet    from '$lib/components/GuestConfigSheet.svelte';
   import PinPrompt           from '$lib/components/PinPrompt.svelte';
+  import FpsOverlay          from '$lib/components/dev/FpsOverlay.svelte';
   import QrScreen            from '$lib/components/setup/QrScreen.svelte';
   import SetupWizard         from '$lib/components/setup/SetupWizard.svelte';
   import { lockState }       from '$lib/stores/lockState.svelte.js';
@@ -382,6 +383,9 @@
 
   let homePills = $derived(pills.filter(isActivePill));
 </script>
+
+<!-- Dev FPS overlay — self-gating on ?fps=1, zero cost otherwise -->
+<FpsOverlay />
 
 <!-- If on /setup route, ONLY render the slot (skip all kiosk logic) -->
 {#if isSetupRoute}
