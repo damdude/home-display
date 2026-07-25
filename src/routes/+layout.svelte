@@ -23,7 +23,7 @@
   import { musicState }          from '$lib/stores/musicState.svelte.js';
   import { idleState, startIdleDetection } from '$lib/stores/idleDetection.svelte.js';
   import { configStore }         from '$lib/stores/configStore.svelte.js';
-  import { dragScroll }          from '$lib/actions/dragScroll.js';
+  import { dragScroll, EDGE_BAND_TOP, EDGE_BAND_BOTTOM } from '$lib/actions/dragScroll.js';
   import { notificationStore }   from '$lib/stores/notificationStore.svelte.js';
 
   import {
@@ -154,47 +154,25 @@
   let shellMainEl = $state<HTMLElement | null>(null);
   let scrollHideTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Pull-to-refresh
-  let pullDistance = $state(0);
-  let pullStartY = 0;
-  let pulling = false;
+  // Pull-to-refresh — driven by dragScroll's rubber-band (it owns the pointer);
+  // this just runs the actual refresh + shows the spinner.
   let refreshing = $state(false);
-  const PULL_THRESHOLD = 90;
-
-  function onTouchStart(e: TouchEvent) {
-    if (!shellMainEl) return;
-    const atTop    = shellMainEl.scrollTop <= 0;
-    const atBottom = shellMainEl.scrollTop + shellMainEl.clientHeight >= shellMainEl.scrollHeight - 1;
-    if (atTop || atBottom) {
-      pulling    = true;
-      pullStartY = e.touches[0].clientY;
-    }
-  }
-
-  function onTouchMove(e: TouchEvent) {
-    if (!pulling) return;
-    pullDistance = e.touches[0].clientY - pullStartY;
-  }
-
-  async function onTouchEnd() {
-    if (!pulling) return;
-    pulling = false;
-    if (Math.abs(pullDistance) >= PULL_THRESHOLD && !refreshing) {
-      refreshing = true;
-      try { await fetch('/api/settings/refresh', { method: 'POST' }); } catch { /* ignore */ }
-      setTimeout(() => { refreshing = false; }, 800);
-    }
-    pullDistance = 0;
+  async function handlePullRefresh() {
+    if (refreshing) return;
+    refreshing = true;
+    try { await fetch('/api/settings/refresh', { method: 'POST' }); }
+    catch { /* ignore */ }
+    setTimeout(() => { refreshing = false; }, 700);
   }
 
   // ── Edge gestures (window-level; NO overlay elements, so taps still reach
   //    the BottomNav and header). Pointer events only — touch events do not fire
   //    reliably on the Waveshare DSI panel (see src/lib/actions/dragScroll.ts).
-  // Bottom band must cover the ~104px BottomNav so swipes starting on the nav
-  // register reliably (a 60px band left most of the nav dead).
-  const EDGE_BAND_TOP    = 90;    // px from the top where a down-swipe may start
-  const EDGE_BAND_BOTTOM = 150;   // px from the bottom where an up-swipe may start
-  const EDGE_TRIGGER     = 48;    // px of travel required to open a panel
+  // EDGE_BAND_TOP / EDGE_BAND_BOTTOM are imported from dragScroll so the two
+  // gesture owners agree on the exact bands (single source of truth). The
+  // bottom band covers the ~104px BottomNav so swipes starting on the nav
+  // register reliably.
+  const EDGE_TRIGGER = 48;   // px of travel required to open a panel
 
   let gStartY = 0;
   let gFrom: 'top' | 'bottom' | null = null;
@@ -454,20 +432,22 @@
       class="shell-main"
       bind:this={shellMainEl}
       onscroll={handleShellScroll}
-      ontouchstart={onTouchStart}
-      ontouchmove={onTouchMove}
-      ontouchend={onTouchEnd}
-      use:dragScroll
+      use:dragScroll={{ onRefresh: handlePullRefresh, refreshThreshold: 90 }}
     >
       <slot />
     </main>
 
     <BottomNav tabs={navTabs} />
 
+    <!-- Edge affordance hints — pill grabbers that the panels can be pulled from.
+         Hidden when a panel is open or the screen is child-locked. -->
+    {#if !controlOpen && !notifOpen && !lockState.locked}
+      <div class="edge-hint edge-hint-top"></div>
+      <div class="edge-hint edge-hint-bottom"></div>
+    {/if}
+
     {#if refreshing}
-      <div class="refresh-indicator">
-        <div class="refresh-spinner"></div>
-      </div>
+      <div class="pull-refresh-spinner"><div class="prs-ring"></div></div>
     {/if}
   </div>
 
@@ -571,22 +551,33 @@
     scrollbar-color: rgba(255,255,255,0.25) transparent;
   }
 
-  /* Pull-to-refresh spinner */
-  .refresh-indicator {
-    position: absolute;
-    top: 8px;
+  /* Edge affordance hints — subtle grabber pills at top & bottom edges */
+  .edge-hint {
+    position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 150;
+    width: 120px; height: 5px;
+    border-radius: 3px;
+    background: var(--color-text-tertiary);
+    opacity: 0.24;
+    z-index: 200;               /* above content, below panels (400) */
     pointer-events: none;
   }
-  .refresh-spinner {
-    width: 28px; height: 28px; border-radius: 50%;
+  .edge-hint-top    { top: 6px; }
+  .edge-hint-bottom { bottom: 6px; }
+
+  /* Pull-to-refresh spinner */
+  .pull-refresh-spinner {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 210; pointer-events: none;
+  }
+  .prs-ring {
+    width: 30px; height: 30px; border-radius: 50%;
     border: 3px solid var(--color-border);
     border-top-color: var(--color-text-secondary);
-    animation: spin 0.8s linear infinite;
+    animation: prs-spin 0.8s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes prs-spin { to { transform: rotate(360deg); } }
 
   /* WebKit (Chromium on the Pi): thin transparent track, thumb fades in on scroll */
   .shell-main::-webkit-scrollbar {
