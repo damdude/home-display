@@ -2,11 +2,11 @@
   import WeatherStrip    from '$lib/components/WeatherStrip.svelte';
   import CalendarTile    from '$lib/components/CalendarTile.svelte';
   import ClimateSplit    from '$lib/components/ClimateSplit.svelte';
-  import QuickShortcuts  from '$lib/components/QuickShortcuts.svelte';
   import MediaNowPlaying from '$lib/components/MediaNowPlaying.svelte';
 
   import { haStore, callHaService } from '$lib/stores/ha.svelte.js';
   import { musicState }             from '$lib/stores/musicState.svelte.js';
+  import { guestState }             from '$lib/stores/guestState.svelte.js';
 
   import {
     weatherForecastHome,
@@ -20,7 +20,6 @@
     climate:     'climate.living_room_thermostat',
     humidity:    'sensor.living_room_thermostat_current_humidity',
     temperature: 'sensor.living_room_thermostat_current_temperature',
-    lights:      'switch.outdoor_lights_outlet1',
   } as const;
 
   function entity(id: string) { return haStore.entities[id]; }
@@ -113,61 +112,62 @@
     callHaService('climate', 'set_hvac_mode', { entity_id: EID.climate, hvac_mode: mode });
   }
 
-  // ── Outdoor lights ────────────────────────────────────────────────────────────
-  let lightsOn = $derived(entity(EID.lights)?.state === 'on');
-  function toggleOutdoorLights() {
-    callHaService('switch', 'toggle', { entity_id: EID.lights });
-  }
-
   // ── Media player — live from musicState resolution layer ─────────────────────
   let activePlayer = $derived(musicState.active);
 </script>
 
-<!-- Home section: weather / calendar / climate / shortcuts / media -->
+<!-- Home section: weather / calendar / climate / media.
+     Widgets can be hidden by Guest Mode (guestState.homeWidgetVisible). -->
 <div class="home">
-  <section class="zone zone-weather">
-    <WeatherStrip {weather} forecast={activeForecast} locationName={locationName} />
-  </section>
+  {#if guestState.homeWidgetVisible('weather')}
+    <section class="zone zone-weather">
+      <WeatherStrip {weather} forecast={activeForecast} locationName={locationName} />
+    </section>
+  {/if}
 
-  <section class="zone zone-calendar">
-    <CalendarTile events={haStore.calendarEvents} overflow={haStore.calendarOverflow} />
-  </section>
+  {#if guestState.homeWidgetVisible('calendar')}
+    <section class="zone zone-calendar">
+      <CalendarTile events={haStore.calendarEvents} overflow={haStore.calendarOverflow} />
+    </section>
+  {/if}
 
-  <section class="zone zone-climate">
-    <ClimateSplit
-      {climate}
-      {humidity}
-      onAdjustSetpoint={adjustSetpoint}
-      onSetMode={setClimateMode}
-    />
-  </section>
+  {#if guestState.homeWidgetVisible('climate')}
+    <section class="zone zone-climate">
+      <ClimateSplit
+        {climate}
+        {humidity}
+        onAdjustSetpoint={adjustSetpoint}
+        onSetMode={setClimateMode}
+      />
+    </section>
+  {/if}
 
-  <section class="zone zone-shortcuts">
-    <QuickShortcuts
-      outdoorLightsOn={lightsOn}
-      onToggleOutdoorLights={toggleOutdoorLights}
-    />
-  </section>
-
-  <section class="zone zone-media">
-    <MediaNowPlaying player={activePlayer} />
-  </section>
+  {#if guestState.homeWidgetVisible('now_playing')}
+    <section class="zone zone-media">
+      <MediaNowPlaying player={activePlayer} />
+    </section>
+  {/if}
 </div>
 
 <style>
-  /* Home fills the content area; 5 zones in proportional rows */
-  /* Tuned for 800×1280 portrait (Waveshare 10.1" DSI) */
+  /* height: 100% gives flex a definite container to fill.
+     overflow: visible lets shell-main scroll if calendar expands past the screen.
+     Calendar and media size to their content so empty tiles collapse to thin
+     bars; leftover space breathes at the bottom instead of stretching a tile. */
   .home {
-    min-height: 100%;
-    display: grid;
-    grid-template-rows: 14fr 13fr 18fr 10fr 18fr;
-    row-gap: clamp(4px, 0.5vh, 8px);
-    padding: clamp(6px, 0.8vh, 12px) clamp(12px, 1.5vw, 20px);
+    height: 100%;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    gap: clamp(8px, 1.2vh, 16px);
+    padding: clamp(8px, 1vh, 14px) clamp(12px, 1.5vw, 20px);
     box-sizing: border-box;
   }
 
-  .zone {
-    min-height: 0;
-    overflow: hidden;
-  }
+  .zone            { flex-shrink: 0; overflow: hidden; }
+  .zone-weather    { height: 220px; }
+  .zone-calendar   { flex: 0 1 auto; overflow: visible; }  /* sizes to content (~2 events or thin empty bar) */
+  .zone-climate    { height: 300px; }
+  .zone-media      { flex: 0 0 auto; overflow: visible; }  /* fixed 112px card (empty bar collapses via its own min-height) */
 </style>

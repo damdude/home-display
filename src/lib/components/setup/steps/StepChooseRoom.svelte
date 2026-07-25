@@ -1,5 +1,6 @@
 <script lang="ts">
   import VirtualKeyboard from '$lib/components/VirtualKeyboard.svelte';
+  import { dragScroll }  from '$lib/actions/dragScroll.js';
 
   interface Props {
     value:      string;
@@ -34,7 +35,7 @@
     <h1>What room is this display for?</h1>
   </div>
 
-  <div class="step-body">
+  <div class="step-body" use:dragScroll>
     <div class="room-list">
       {#each PRESETS as room}
         <button
@@ -43,9 +44,7 @@
           onclick={() => select(room)}
         >
           <span class="room-label">{room}</span>
-          {#if value === room}
-            <span class="check">✓</span>
-          {/if}
+          <span class="check" class:on={value === room}></span>
         </button>
       {/each}
 
@@ -57,9 +56,7 @@
         <span class="room-label">
           {value && !PRESETS.includes(value) ? value : '+ Custom Room Name'}
         </span>
-        {#if value && !PRESETS.includes(value)}
-          <span class="check">✓</span>
-        {/if}
+        <span class="check" class:on={value && !PRESETS.includes(value)}></span>
       </button>
     </div>
   </div>
@@ -132,7 +129,7 @@
   }
 
   .room-row {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
     padding: 30px 36px;
     background: #111;
     border: 2px solid rgba(255,255,255,0.08);
@@ -154,7 +151,15 @@
   }
 
   .room-label { flex: 1; text-align: left; }
-  .check { font-size: 26px; color: #fff; margin-left: 14px; }
+
+  /* Selected indicator — plain rounded circle, no tick glyph */
+  .check {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    transition: background 150ms, border-color 150ms;
+  }
+  .check.on { background: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.9); }
+
   .custom-row { border-style: dashed; }
 
   .step-footer {

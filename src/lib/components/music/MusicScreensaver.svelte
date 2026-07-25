@@ -8,9 +8,13 @@
    */
   import { fade }        from 'svelte/transition';
   import { cubicOut }    from 'svelte/easing';
-  import { X, Play, Pause, SkipBack, SkipForward, MapPin, Thermometer, Calendar as CalendarIcon } from 'lucide-svelte';
+  import {
+    X, Play, Pause, SkipBack, SkipForward, MapPin, Thermometer,
+    ShieldCheck, ShieldAlert, Shield, ShieldOff, DoorOpen, DoorClosed, Lightbulb,
+  } from 'lucide-svelte';
   import ProgressBar     from './ProgressBar.svelte';
   import type { ResolvedPlayer } from '$lib/music/playerResolution.js';
+  import type { PillDescriptor } from '$lib/data/placeholder.js';
   import { callHaService } from '$lib/stores/ha.svelte.js';
 
   interface CalendarEvent { summary: string; start: string; allDay: boolean; location?: string | null; }
@@ -20,9 +24,18 @@
     locationLabel:  string;
     temperature:    string | null;
     calendarEvents: CalendarEvent[];
+    pills?:         PillDescriptor[];
+    notifCount?:    number;
     onClose:        () => void;
   }
-  let { player, locationLabel, temperature, calendarEvents, onClose }: Props = $props();
+  let { player, locationLabel, temperature, calendarEvents, pills = [], notifCount = 0, onClose }: Props = $props();
+
+  // A pill reads as "active" (full brightness) when its state warrants attention.
+  function pillActive(p: PillDescriptor): boolean {
+    if (p.isTriggered) return true;
+    return p.status === 'Open' || p.status === 'On'
+      || p.status === 'Armed Home' || p.status === 'Armed Away';
+  }
 
   function formatEventTime(event: CalendarEvent): string {
     const date = new Date(event.start);
@@ -88,6 +101,23 @@
     ontouchstart={touchActivity}
     onclick={touchActivity}
   >
+    <!-- Full-bleed artwork background -->
+    {#if player.media.artwork}
+      <img src={player.media.artwork} alt="" class="art-bg" class:paused={!isPlaying} />
+    {:else}
+      <div class="art-bg art-bg-placeholder"></div>
+    {/if}
+
+    <!-- Dark scrim so overlaid text/controls stay readable -->
+    <div class="scrim"></div>
+
+    {#if notifCount > 0}
+      <div class="notif-badge">
+        <span class="notif-dot"></span>
+        {notifCount} notification{notifCount === 1 ? '' : 's'}
+      </div>
+    {/if}
+
     <!-- Close button — top-right, fades in on interaction -->
     <button
       class="close-btn"
@@ -98,18 +128,8 @@
       <X size={22} strokeWidth={2} />
     </button>
 
-    <!-- Main content — centered column -->
-    <div class="main">
-      <!-- Artwork -->
-      <div class="artwork" class:paused={!isPlaying}>
-        {#if player.media.artwork}
-          <img src={player.media.artwork} alt="Album art" class="art-img" />
-        {:else}
-          <div class="art-placeholder"></div>
-        {/if}
-      </div>
-
-      <!-- Track info -->
+    <!-- Overlaid content — anchored to the bottom -->
+    <div class="overlay">
       <div class="track-info">
         <h1 class="title">{player.media.title ?? 'Now Playing'}</h1>
         {#if player.media.artist}
@@ -117,7 +137,6 @@
         {/if}
       </div>
 
-      <!-- Progress bar -->
       <div class="progress-wrap">
         <ProgressBar
           position={player.media.position}
@@ -130,7 +149,6 @@
         />
       </div>
 
-      <!-- Transport: SkipBack · Play/Pause · SkipForward -->
       <div class="transport">
         <button
           class="ctrl"
@@ -171,6 +189,13 @@
     transition:fade={{ duration: 600, easing: cubicOut }}
     onclick={onClose}
   >
+    {#if notifCount > 0}
+      <div class="notif-badge">
+        <span class="notif-dot"></span>
+        {notifCount} notification{notifCount === 1 ? '' : 's'}
+      </div>
+    {/if}
+
     <div class="clock-body">
 
       <!-- Location + temperature pill — above the time -->
@@ -199,6 +224,35 @@
 
       <!-- Date — Wednesday, June 5 -->
       <p class="clock-date">{clockDate}</p>
+
+      <!-- Sensor pills — all statuses, black & white -->
+      {#if pills.length > 0}
+        <div class="ss-pills">
+          {#each pills as pill (pill.id)}
+            <div class="ss-pill" class:active={pillActive(pill)}>
+              <span class="ss-pill-icon">
+                {#if pill.iconId === 'shield-check'}
+                  <ShieldCheck size={16} strokeWidth={2} />
+                {:else if pill.iconId === 'shield-alert'}
+                  <ShieldAlert size={16} strokeWidth={2} />
+                {:else if pill.iconId === 'shield'}
+                  <Shield size={16} strokeWidth={2} />
+                {:else if pill.iconId === 'shield-off'}
+                  <ShieldOff size={16} strokeWidth={2} />
+                {:else if pill.iconId === 'door-open'}
+                  <DoorOpen size={16} strokeWidth={2} />
+                {:else if pill.iconId === 'door-closed'}
+                  <DoorClosed size={16} strokeWidth={2} />
+                {:else}
+                  <Lightbulb size={16} strokeWidth={2} />
+                {/if}
+              </span>
+              <span class="ss-pill-label">{pill.label}</span>
+              <span class="ss-pill-status">{pill.status}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
 
       <!-- Calendar events — directly below the date -->
       {#if calendarEvents.length > 0}
@@ -255,29 +309,40 @@
   .close-btn.visible { opacity: 1; }
   .close-btn:active   { background: rgba(255,255,255,0.18); }
 
-  /* Main content column (music mode) */
-  .main {
-    position: relative; z-index: 1;
-    display: flex; flex-direction: column;
-    align-items: center;
-    gap: clamp(16px, 2vh, 28px);
-    width: min(60vw, 80vh);
-    padding: 0 5vw;
+  /* Full-bleed artwork background */
+  .art-bg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;          /* fill the screen, crop as needed */
+    z-index: 0;
+    transition: filter 400ms ease, opacity 400ms ease;
+  }
+  .art-bg.paused { filter: saturate(0.6) brightness(0.85); }
+  .art-bg-placeholder { background: var(--color-surface-2); }
+
+  /* Gradient scrim — darkens bottom for text legibility, keeps top art visible */
+  .scrim {
+    position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(
+      to bottom,
+      rgba(0,0,0,0.15) 0%,
+      rgba(0,0,0,0.0) 28%,
+      rgba(0,0,0,0.55) 70%,
+      rgba(0,0,0,0.85) 100%
+    );
+    pointer-events: none;
   }
 
-  /* Artwork */
-  .artwork {
-    width: min(55vw, 50vh);
-    height: min(55vw, 50vh);
-    border-radius: 24px;
-    overflow: hidden;
-    box-shadow: 0 16px 60px rgba(0,0,0,0.65);
-    flex-shrink: 0;
-    transition: opacity 300ms ease, filter 300ms ease;
+  /* Overlaid content anchored to the bottom of the screen */
+  .overlay {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 2;
+    display: flex; flex-direction: column;
+    align-items: center;
+    gap: clamp(18px, 2.5vh, 32px);
+    padding: 0 6vw clamp(40px, 6vh, 72px);
   }
-  .artwork.paused { opacity: 0.8; filter: saturate(0.55); }
-  .art-img         { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .art-placeholder { width: 100%; height: 100%; background: var(--color-surface-2); }
 
   /* Track info */
   .track-info {
@@ -285,17 +350,19 @@
     display: flex; flex-direction: column; gap: 0.2rem;
   }
   .title {
-    font-size: clamp(36px, 4.5vw, 72px);
+    font-size: clamp(44px, 5.5vw, 88px);
     font-weight: 700; letter-spacing: -0.025em;
-    color: rgba(255,255,255,0.95);
+    color: #fff;
     margin: 0; line-height: 1.1;
     overflow: hidden; display: -webkit-box;
     -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.6);
   }
   .artist {
-    font-size: clamp(20px, 2.4vw, 40px);
-    font-weight: 400; color: rgba(255,255,255,0.72);
+    font-size: clamp(28px, 3.2vw, 52px);
+    font-weight: 400; color: rgba(255,255,255,0.85);
     margin: 0;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.55);
   }
 
   /* Progress bar */
@@ -308,15 +375,35 @@
   }
   .ctrl {
     border: none; background: none; cursor: pointer;
-    color: rgba(255,255,255,0.88);
+    color: #fff;
     display: flex; align-items: center; justify-content: center;
     padding: 4px; border-radius: 50%;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
     transition: transform 130ms cubic-bezier(0.32,0.72,0,1), opacity 130ms;
     -webkit-tap-highlight-color: transparent;
   }
   .ctrl:disabled { opacity: 0.28; cursor: default; pointer-events: none; }
   .ctrl:not(:disabled):active { transform: scale(0.88); }
   .play-btn { padding: 6px; }
+
+  /* Notification badge — top-left, both screensaver modes */
+  .notif-badge {
+    position: absolute;
+    top: clamp(16px, 2vh, 28px); left: clamp(16px, 2vw, 28px);
+    z-index: 3;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-radius: 999px;
+    background: rgba(0,0,0,0.45);
+    color: rgba(255,255,255,0.9);
+    font-size: clamp(16px, 1.8vw, 22px); font-weight: 500;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+  }
+  .notif-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--color-accent-triggered);
+    flex-shrink: 0;
+  }
 
   /* ── Clock mode ── */
   .screensaver.clock {
@@ -336,10 +423,10 @@
   /* Location + temperature — sits just above the time */
   .clock-meta {
     display: flex; align-items: center; gap: 10px;
-    color: rgba(255,255,255,0.38);
-    font-size: clamp(14px, 1.6vw, 22px);
+    color: rgba(255,255,255,0.45);
+    font-size: clamp(20px, 2.4vw, 32px);
     font-weight: 400; letter-spacing: 0.06em;
-    margin-bottom: clamp(4px, 0.8vh, 12px);
+    margin-bottom: clamp(6px, 1vh, 16px);
     white-space: nowrap;
   }
   .meta-item {
@@ -360,19 +447,45 @@
 
   /* Date — Wednesday, June 5 */
   .clock-date {
-    font-size: clamp(18px, 2.2vw, 32px);
+    font-size: clamp(26px, 3.2vw, 44px);
     font-weight: 300;
-    color: rgba(255,255,255,0.42);
-    margin: clamp(6px, 0.8vh, 12px) 0 0;
+    color: rgba(255,255,255,0.5);
+    margin: clamp(8px, 1vh, 16px) 0 0;
     letter-spacing: 0.04em;
   }
 
+  /* Sensor pills — black & white, all sensors shown */
+  .ss-pills {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 10px;
+    margin-top: clamp(20px, 3vh, 40px);
+    max-width: min(760px, 88vw);
+  }
+  .ss-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px; border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.03);
+    white-space: nowrap;
+    opacity: 0.55;                       /* inactive: dimmed */
+  }
+  /* Active (open / on / armed / triggered): full white, solid border */
+  .ss-pill.active {
+    opacity: 1;
+    border-color: rgba(255,255,255,0.55);
+    background: rgba(255,255,255,0.10);
+  }
+  .ss-pill-icon   { display: flex; align-items: center; color: rgba(255,255,255,0.75); }
+  .ss-pill-label  { font-size: clamp(15px, 1.6vw, 20px); font-weight: 500; color: rgba(255,255,255,0.9); }
+  .ss-pill-status { font-size: clamp(14px, 1.5vw, 19px); font-weight: 500; color: rgba(255,255,255,0.6); }
+  .ss-pill.active .ss-pill-status { color: #fff; }
+
   /* Calendar — immediately below the date */
   .clock-calendar {
-    display: flex; flex-direction: column; gap: 10px;
-    margin-top: clamp(20px, 3vh, 40px);
-    min-width: min(380px, 70vw);
-    max-width: 70vw;
+    display: flex; flex-direction: column; gap: 16px;
+    margin-top: clamp(24px, 3.5vh, 48px);
+    min-width: min(480px, 80vw);
+    max-width: 80vw;
   }
 
   .cal-item {
@@ -380,10 +493,10 @@
   }
 
   .cal-dot {
-    width: 5px; height: 5px; border-radius: 50%;
+    width: 7px; height: 7px; border-radius: 50%;
     background: rgba(255,255,255,0.35);
     flex-shrink: 0;
-    margin-top: clamp(5px, 0.6vw, 7px); /* vertically aligns with first text line */
+    margin-top: clamp(8px, 0.9vw, 11px);
   }
 
   .cal-content {
@@ -392,22 +505,22 @@
   }
 
   .cal-summary {
-    font-size: clamp(14px, 1.5vw, 18px);
+    font-size: clamp(22px, 2.6vw, 34px);
     font-weight: 500;
-    color: rgba(255,255,255,0.75);
+    color: rgba(255,255,255,0.82);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
   .cal-time {
-    font-size: clamp(12px, 1.3vw, 16px);
-    color: rgba(255,255,255,0.45);
+    font-size: clamp(17px, 2vw, 26px);
+    color: rgba(255,255,255,0.5);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.02em;
   }
 
   .cal-location {
-    font-size: clamp(10px, 1vw, 13px);
-    color: rgba(255,255,255,0.35);
+    font-size: clamp(14px, 1.6vw, 20px);
+    color: rgba(255,255,255,0.38);
     font-weight: 400;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }

@@ -25,6 +25,7 @@ interface WizardBody {
   alarm?:         string;
   hiddenAreaIds?: string[];
   idleTimeoutSec?: number;
+  childLockPin?:  string;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -71,8 +72,9 @@ export const POST: RequestHandler = async ({ request }) => {
         },
       },
       security: {
-        cameras: body.cameras       ?? [],
-        alarm:   body.alarm         || null,
+        cameras:      body.cameras      ?? [],
+        alarm:        body.alarm        || null,
+        childLockPin: (body.childLockPin ?? '').replace(/\D/g, '').slice(0, 6),
       },
       zones: {
         hiddenAreaIds: body.hiddenAreaIds ?? [],

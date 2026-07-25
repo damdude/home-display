@@ -1,5 +1,7 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { zonesStore } from '$lib/stores/zonesStore.svelte.js';
+  import { dragScroll } from '$lib/actions/dragScroll.js';
 
   interface Props {
     hiddenAreaIds: string[];
@@ -13,6 +15,28 @@
       f.zones.map(z => ({ areaId: z.areaId, name: z.name, floor: f.name }))
     )
   );
+
+  // Never trap the user on a spinner. After 6s, give up waiting and show
+  // whatever we have (the zone list, or the "no zones" message) — both of
+  // which have a working Continue button.
+  let waitedLongEnough = $state(false);
+  onMount(() => {
+    const t = setTimeout(() => { waitedLongEnough = true; }, 6000);
+    return () => clearTimeout(t);
+  });
+
+  let showSpinner = $derived(zonesStore.loading && !waitedLongEnough && allZones.length === 0);
+
+  // No preselection: once the zone list arrives, seed hiddenAreaIds with
+  // every area so nothing starts checked — the user taps a room to show it.
+  // Runs once; later toggles must not be overwritten by this effect.
+  let seeded = $state(false);
+  $effect(() => {
+    if (!seeded && allZones.length > 0) {
+      hiddenAreaIds = allZones.map(z => z.areaId);
+      seeded = true;
+    }
+  });
 
   function toggle(areaId: string) {
     if (hiddenAreaIds.includes(areaId)) {
@@ -28,11 +52,11 @@
 <div class="step">
   <div class="step-header">
     <h1>Zones tab setup</h1>
-    <p>Uncheck any rooms you don't want to show.</p>
+    <p>Choose which rooms to show.</p>
   </div>
 
-  <div class="step-body">
-    {#if zonesStore.loading}
+  <div class="step-body" use:dragScroll>
+    {#if showSpinner}
       <div class="connecting">
         <div class="spinner"></div>
         <p>Loading zones…</p>
@@ -46,11 +70,11 @@
         {#each allZones as zone}
           {@const visible = !hiddenAreaIds.includes(zone.areaId)}
           <button class="option-row" class:selected={visible} onclick={() => toggle(zone.areaId)}>
-            <span class="check" class:on={visible}>{visible ? '✓' : ''}</span>
             <div class="zone-text">
               <span class="zone-name">{zone.name}</span>
               <span class="zone-floor">{zone.floor}</span>
             </div>
+            <span class="check" class:on={visible}></span>
           </button>
         {/each}
         <p class="summary">{visibleCount} zone{visibleCount !== 1 ? 's' : ''} will be shown</p>
@@ -105,15 +129,15 @@
   }
 
   .option-row {
-    display: flex; align-items: center; gap: 16px;
-    padding: 24px 28px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 30px 36px;
     background: #111;
     border: 2px solid rgba(255,255,255,0.08);
-    border-radius: 18px;
+    border-radius: 20px;
     cursor: pointer; text-align: left; width: 100%;
     transition: border-color 150ms, background 150ms, opacity 150ms;
     -webkit-tap-highlight-color: transparent;
-    min-height: 92px;
+    min-height: 104px;
   }
   .option-row.selected {
     border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.09);
@@ -121,17 +145,17 @@
   .option-row:not(.selected) { opacity: 0.4; }
   .option-row:active { transform: scale(0.99); }
 
+  /* Selected indicator — plain rounded circle, no tick glyph */
   .check {
-    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
     border: 1.5px solid rgba(255,255,255,0.2);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 700; color: transparent; transition: all 150ms;
+    transition: background 150ms, border-color 150ms;
   }
-  .check.on { background: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.9); color: #000; }
+  .check.on { background: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.9); }
 
   .zone-text { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-  .zone-name  { font-size: 28px; font-weight: 600; color: #fff; }
-  .zone-floor { font-size: 18px; color: rgba(255,255,255,0.35); }
+  .zone-name  { font-size: 32px; font-weight: 600; color: #fff; }
+  .zone-floor { font-size: 20px; color: rgba(255,255,255,0.35); }
 
   .summary {
     font-size: 18px; color: rgba(255,255,255,0.3);

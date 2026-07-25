@@ -4,13 +4,14 @@
  * No credentials are returned to the client — they stay server-side and
  * are used exclusively by the /api/ha SSE proxy.
  */
-import { env } from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
+import { getActiveCredentials } from '$lib/server/ha/connection.js';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = () => {
-  if (!env.HA_URL || !env.HA_TOKEN) {
-    error(500, 'HA_URL and HA_TOKEN must be set in .env');
+  const { url, token } = getActiveCredentials();
+  if (!url || !token) {
+    error(500, 'HA credentials not available');
   }
   // Intentionally returns nothing — credentials must not be serialised into
   // the HTML response where the browser could read them.

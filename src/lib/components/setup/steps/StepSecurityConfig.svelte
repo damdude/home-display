@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Camera, Shield } from 'lucide-svelte';
   import { haStore } from '$lib/stores/ha.svelte.js';
+  import { dragScroll } from '$lib/actions/dragScroll.js';
 
   interface Props {
     cameras:    string[];
@@ -37,7 +38,7 @@
     <p>Choose your cameras and alarm system.</p>
   </div>
 
-  <div class="step-body">
+  <div class="step-body" use:dragScroll>
     {#if !haStore.connected}
       <div class="connecting">
         <div class="spinner"></div>
@@ -60,8 +61,8 @@
               {#each cameraOpts as cam}
                 {@const on = cameras.includes(cam.id)}
                 <button class="option-row" class:selected={on} onclick={() => toggleCamera(cam.id)}>
-                  <span class="check" class:on>{on ? '✓' : ''}</span>
                   <span class="row-label">{cam.name}</span>
+                  <span class="check" class:on></span>
                 </button>
               {/each}
             </div>
@@ -143,31 +144,32 @@
   .check-list { display: flex; flex-direction: column; gap: 12px; }
 
   .option-row {
-    display: flex; align-items: center; gap: 16px;
-    padding: 24px 28px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 30px 36px;
     background: #111;
     border: 2px solid rgba(255,255,255,0.08);
-    border-radius: 18px;
+    border-radius: 20px;
     cursor: pointer; text-align: left; width: 100%;
     transition: border-color 150ms, background 150ms;
     -webkit-tap-highlight-color: transparent;
-    min-height: 92px;
+    min-height: 104px;
   }
   .option-row.selected {
     border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.09);
   }
   .option-row:active { transform: scale(0.99); }
 
+  /* Selected indicator — plain rounded circle, no tick glyph */
   .check {
-    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
     border: 1.5px solid rgba(255,255,255,0.2);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 700; color: transparent; transition: all 150ms;
+    transition: background 150ms, border-color 150ms;
   }
-  .check.on { background: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.9); color: #000; }
+  .check.on { background: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.9); }
 
   .row-label {
-    font-size: 28px; font-weight: 500;
+    flex: 1;
+    font-size: 32px; font-weight: 500;
     color: rgba(255,255,255,0.45); transition: color 150ms;
   }
   .option-row.selected .row-label { color: #fff; }

@@ -12,7 +12,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createConnection, createLongLivedTokenAuth } from 'home-assistant-js-websocket';
-import { env } from '$env/dynamic/private';
+import { getActiveCredentials } from '$lib/server/ha/connection.js';
 import { refreshZoneRegistry } from '$lib/server/ha/zones.js';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -26,9 +26,8 @@ export const POST: RequestHandler = async ({ request }) => {
     error(400, 'areaId must be string or null');
   }
 
-  const haUrl   = env.HA_URL;
-  const haToken = env.HA_TOKEN;
-  if (!haUrl || !haToken) error(500, 'HA_URL / HA_TOKEN not configured');
+  const { url: haUrl, token: haToken } = getActiveCredentials();
+  if (!haUrl || !haToken) error(500, 'HA credentials not available');
 
   let conn: Awaited<ReturnType<typeof createConnection>> | null = null;
   try {

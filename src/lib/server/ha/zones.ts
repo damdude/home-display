@@ -13,7 +13,7 @@
  */
 
 import { createConnection, createLongLivedTokenAuth } from 'home-assistant-js-websocket';
-import { env } from '$env/dynamic/private';
+import { getActiveCredentials } from './connection.js';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -106,9 +106,8 @@ export async function refreshZoneRegistry(): Promise<void> {
 }
 
 async function doRegistryRefresh(): Promise<void> {
-  const haUrl   = env.HA_URL;
-  const haToken = env.HA_TOKEN;
-  if (!haUrl || !haToken) { console.error('[Zones] HA_URL / HA_TOKEN not set'); return; }
+  const { url: haUrl, token: haToken } = getActiveCredentials();
+  if (!haUrl || !haToken) { console.error('[Zones] No active HA credentials'); return; }
 
   let conn: Awaited<ReturnType<typeof createConnection>> | null = null;
   try {
@@ -205,7 +204,14 @@ async function doRegistryRefresh(): Promise<void> {
     broadcast({ floors, unassigned });
 
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    // home-assistant-js-websocket throws numeric codes: 1=cannot connect,
+    // 2=invalid auth, 3=connection lost. Map them for readable logs.
+    let msg: string;
+    if (err === 1)      msg = 'ERR_CANNOT_CONNECT (1)';
+    else if (err === 2) msg = 'ERR_INVALID_AUTH (2)';
+    else if (err === 3) msg = 'ERR_CONNECTION_LOST (3)';
+    else                msg = err instanceof Error ? err.message : String(err);
+
     if (!msg.includes('not connected') && !msg.includes('Handshake')) {
       console.error('[Zones] Registry fetch failed:', msg);
     }

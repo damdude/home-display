@@ -65,26 +65,26 @@
 
 <style>
   .keyboard {
-    display: flex; flex-direction: column; gap: 8px;
-    padding: 10px;
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 14px;
     background: rgba(255,255,255,0.04);
-    border-radius: 16px;
+    border-radius: 18px;
     user-select: none;
   }
 
   .row {
-    display: flex; gap: 6px; justify-content: center;
+    display: flex; gap: 8px; justify-content: center;
   }
 
   .key {
-    min-width: clamp(32px, 4vw, 52px);
-    height: clamp(40px, 5.5vh, 56px);
-    padding: 0 clamp(4px, 0.5vw, 8px);
+    min-width: 58px;
+    height: 64px;
+    padding: 0 8px;
     border: 1px solid rgba(255,255,255,0.12);
     background: #1a1a1a;
     color: #fff;
-    border-radius: 8px;
-    font-size: clamp(13px, 1.3vw, 18px);
+    border-radius: 12px;
+    font-size: 24px;
     font-weight: 500;
     cursor: pointer;
     transition: background 80ms, transform 80ms;
@@ -94,8 +94,8 @@
   }
 
   .key:active   { background: rgba(255,255,255,0.25); transform: scale(0.93); }
-  .key.wide     { flex: 1; max-width: clamp(160px, 30vw, 280px); }
-  .key.medium   { min-width: clamp(56px, 7vw, 80px); }
+  .key.wide     { flex: 1; max-width: 340px; }
+  .key.medium   { min-width: 88px; }
 
   .key.active-caps {
     background: rgba(255,255,255,0.2);

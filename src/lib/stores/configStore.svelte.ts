@@ -30,6 +30,8 @@ export interface DashboardConfig {
   security: {
     cameras: string[];
     alarm:   string | null;
+    /** Child-lock PIN (4–6 digits), plain text. Empty = disabled. UX gate, not real security. */
+    childLockPin: string;
   };
   zones: {
     hiddenAreaIds: string[];
@@ -45,7 +47,7 @@ const _defaults: DashboardConfig = {
     widgets:  [],
     entities: { weather: null, calendar: null, climate: null, tempSensor: null, humSensor: null },
   },
-  security: { cameras: [], alarm: null },
+  security: { cameras: [], alarm: null, childLockPin: '' },
   zones:    { hiddenAreaIds: [] },
 };
 
@@ -105,6 +107,7 @@ export const configStore = {
     cameras:       string[];
     alarm:         string;
     hiddenAreaIds: string[];
+    childLockPin?: string;
   }): Promise<void> {
     const res = await fetch('/api/setup/complete', {
       method:  'POST',

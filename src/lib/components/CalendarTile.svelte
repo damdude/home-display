@@ -9,6 +9,12 @@
 
   let { events, overflow }: Props = $props();
 
+  // ── Show more / less toggle ───────────────────────────────────────────────────
+  const MAX_VISIBLE = 2;
+  let showAll = $state(false);
+  let displayEvents = $derived(showAll ? events : events.slice(0, MAX_VISIBLE));
+  let hasMore = $derived(events.length > MAX_VISIBLE || overflow > 0);
+
   // ── Expand / collapse state ───────────────────────────────────────────────────
   // Keys are event index. Multiple rows can be expanded simultaneously.
   let expanded = $state(new Set<number>());
@@ -90,12 +96,13 @@
     <span>Upcoming</span>
   </div>
 
-  <div class="card">
-    {#if events.length === 0}
-      <p class="empty">Nothing scheduled for the next 30 days</p>
-    {:else}
+  {#if events.length === 0}
+    <!-- Compact empty bar — matches Now Playing's empty bar -->
+    <div class="empty">Nothing scheduled for the next 30 days</div>
+  {:else}
+    <div class="card">
       <div class="events">
-        {#each events as ev, idx (ev.start + ev.summary)}
+        {#each displayEvents as ev, idx (ev.start + ev.summary)}
           {@const isExpanded = expanded.has(idx)}
           {@const desc       = ev.description ? cleanDescription(ev.description) : null}
           {@const hasDetail  = !!(desc || ev.location)}
@@ -130,17 +137,25 @@
           </div>
         {/each}
 
-        {#if overflow > 0}
-          <p class="overflow">+{overflow} more</p>
+        {#if hasMore}
+          <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+          <div class="show-more-row" onclick={() => showAll = !showAll}>
+            {#if showAll}
+              <span class="show-more-btn">Show less</span>
+            {:else}
+              <span class="show-more-btn">
+                Show all {events.length + overflow} events
+              </span>
+            {/if}
+          </div>
         {/if}
       </div>
-    {/if}
-  </div>
+    </div>
+  {/if}
 </div>
 
 <style>
   .calendar {
-    height: 100%;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
@@ -161,35 +176,32 @@
 
   /* ── Card ── */
   .card {
-    flex: 1;
-    min-height: 0;
     background: var(--color-surface-1);
     border-radius: 28px;
     border: 1px solid var(--color-border);
     box-shadow: inset 0 1px 0 var(--color-highlight);
-    padding: 0.9rem 1.6rem;
-    /* Scroll internally when events overflow (expanded rows) */
-    overflow-y: auto;
-    scrollbar-width: none;
+    padding: 0.5rem 1.4rem;
   }
   .card::-webkit-scrollbar { display: none; }
 
-  /* ── Empty state ── */
+  /* ── Empty state — compact bar, matches Now Playing empty bar ── */
   .empty {
-    font-size: clamp(15px, 1.39vw, 20px);
+    min-height: 56px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    box-shadow: inset 0 1px 0 var(--color-highlight);
     color: var(--color-text-tertiary);
-    opacity: 0.6;
-    font-style: italic;
-    margin: 0;
-    text-align: center;
-    padding: 1.5rem 0;
+    font-size: clamp(14px, 1.5vw, 18px);
+    font-style: italic; opacity: 0.6;
   }
 
   /* ── Event list ── */
   .events {
     display: flex;
     flex-direction: column;
-    gap: clamp(10px, 1.2vh, 18px);
+    gap: clamp(6px, 0.8vh, 12px);
   }
 
   /* ── Event item ── */
@@ -197,7 +209,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.25em;
-    padding-bottom: clamp(8px, 0.9vh, 14px);
+    padding-bottom: clamp(5px, 0.6vh, 10px);
     border-bottom: 1px solid var(--color-border);
   }
   .event-item:last-of-type { border-bottom: none; padding-bottom: 0; }
@@ -279,13 +291,18 @@
     margin-top: 0.15em;
   }
 
-  /* ── Overflow indicator ── */
-  .overflow {
-    font-size: clamp(12px, 1.1vw, 15px);
-    color: var(--color-text-tertiary);
-    opacity: 0.55;
-    margin: 0;
-    text-align: right;
-    padding-right: 0.2rem;
+  /* ── Show more row ── */
+  .show-more-row {
+    padding-top: 4px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .show-more-row:active { opacity: 0.7; }
+
+  .show-more-btn {
+    font-size: clamp(13px, 1.2vw, 16px);
+    font-weight: 500;
+    color: var(--color-accent-info, #6b9bb5);
+    opacity: 0.8;
   }
 </style>

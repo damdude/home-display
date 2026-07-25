@@ -81,7 +81,7 @@
   .mute-btn:not(:disabled):active { opacity: 1; }
 
   .slider {
-    flex: 1; height: 6px; cursor: pointer;
+    flex: 1; height: 5px; cursor: pointer;
     -webkit-appearance: none; appearance: none;
     border-radius: 999px; outline: none;
     /* Two-tone: filled left in accent-music, unfilled right in surface-2 */
@@ -95,13 +95,13 @@
   }
   .slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 16px; height: 16px; border-radius: 50%;
+    width: 14px; height: 14px; border-radius: 50%;
     background: var(--color-accent-music);
     cursor: pointer;
     box-shadow: 0 0 0 2px rgba(155, 123, 181, 0.28);
   }
   .slider::-moz-range-thumb {
-    width: 16px; height: 16px; border-radius: 50%; border: none;
+    width: 14px; height: 14px; border-radius: 50%; border: none;
     background: var(--color-accent-music);
     cursor: pointer;
   }

@@ -8,13 +8,13 @@
  * Body: { entityId: string, mediaContentId?: string, mediaContentType?: string }
  * Returns: HA BrowseMedia response object, or 503 on failure.
  */
-import { env }        from '$env/dynamic/private';
 import { error, json } from '@sveltejs/kit';
-import { callService } from '$lib/server/ha/connection.js';
+import { callService, getActiveCredentials } from '$lib/server/ha/connection.js';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
-  if (!env.HA_URL || !env.HA_TOKEN) error(500, 'HA_URL / HA_TOKEN not set');
+  const { url: haUrl, token: haToken } = getActiveCredentials();
+  if (!haUrl || !haToken) error(500, 'HA credentials not available');
 
   const body = await request.json() as {
     entityId?:         string;
@@ -33,11 +33,11 @@ export const POST: RequestHandler = async ({ request }) => {
     // For now we use the HA REST API equivalent as a fallback until a
     // sendRawMessage helper is added to connection.ts.
     const res = await fetch(
-      `${env.HA_URL}/api/media_player_proxy/${body.entityId}/browse_media`
+      `${haUrl}/api/media_player_proxy/${body.entityId}/browse_media`
         + (body.mediaContentType ? `/${body.mediaContentType}` : '')
         + (body.mediaContentId   ? `/${encodeURIComponent(body.mediaContentId)}` : ''),
       {
-        headers: { Authorization: `Bearer ${env.HA_TOKEN}` },
+        headers: { Authorization: `Bearer ${haToken}` },
         signal:  AbortSignal.timeout(10_000),
       },
     );

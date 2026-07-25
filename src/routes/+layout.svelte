@@ -7,15 +7,24 @@
   import TopStrip         from '$lib/components/TopStrip.svelte';
   import StatusPillRow    from '$lib/components/StatusPillRow.svelte';
   import BottomNav        from '$lib/components/BottomNav.svelte';
-  import MusicScreensaver from '$lib/components/music/MusicScreensaver.svelte';
-  import QrScreen         from '$lib/components/setup/QrScreen.svelte';
-  import SetupWizard      from '$lib/components/setup/SetupWizard.svelte';
+  import MusicScreensaver    from '$lib/components/music/MusicScreensaver.svelte';
+  import NotificationCenter  from '$lib/components/NotificationCenter.svelte';
+  import ControlCenter       from '$lib/components/ControlCenter.svelte';
+  import ChildLockOverlay    from '$lib/components/ChildLockOverlay.svelte';
+  import GuestConfigSheet    from '$lib/components/GuestConfigSheet.svelte';
+  import PinPrompt           from '$lib/components/PinPrompt.svelte';
+  import QrScreen            from '$lib/components/setup/QrScreen.svelte';
+  import SetupWizard         from '$lib/components/setup/SetupWizard.svelte';
+  import { lockState }       from '$lib/stores/lockState.svelte.js';
+  import { guestState }      from '$lib/stores/guestState.svelte.js';
   import { startHaStream }       from '$lib/stores/ha.svelte.js';
   import { startZonesStream }    from '$lib/stores/zonesStore.svelte.js';
   import { haStore }             from '$lib/stores/ha.svelte.js';
   import { musicState }          from '$lib/stores/musicState.svelte.js';
   import { idleState, startIdleDetection } from '$lib/stores/idleDetection.svelte.js';
   import { configStore }         from '$lib/stores/configStore.svelte.js';
+  import { dragScroll }          from '$lib/actions/dragScroll.js';
+  import { notificationStore }   from '$lib/stores/notificationStore.svelte.js';
 
   import {
     alarmSecurityPartition1,
@@ -37,13 +46,53 @@
   let _stopIdle:  (() => void) | undefined;
   let _stopZones: (() => void) | undefined;
 
+  // Notification center + control center
+  let notifOpen   = $state(false);
+  let controlOpen = $state(false);
+
+  // Guest mode UI
+  let guestConfigOpen     = $state(false);
+  let guestExitPromptOpen = $state(false);
+
+  function openGuestConfig() { controlOpen = false; guestConfigOpen = true; }
+  function exitGuest() {
+    controlOpen = false;
+    if (configStore.security?.childLockPin) guestExitPromptOpen = true;
+    else guestState.disable();   // no PIN configured → exit directly
+  }
+
+  // Tabs shown in the bottom nav — filtered while guest mode hides some.
+  let navTabs = $derived(
+    guestState.active ? configStore.tabs.filter(t => guestState.tabVisible(t)) : configStore.tabs,
+  );
+
   let haTokenSet  = $derived(configStore.haTokenSet());
   let isSetupDone = $derived(configStore.isSetupDone());
+
+  // Start the screensaver idle timer once setup is complete. As an effect (not
+  // just onMount) it also fires when the wizard finishes in this same session.
+  $effect(() => {
+    if (!isSetupDone) return;
+    if (_stopIdle) return;
+    _stopIdle = startIdleDetection();
+  });
   
   // CRITICAL: Skip ALL kiosk logic if on /setup route
   let isSetupRoute = $derived($page.url.pathname === '/setup');
 
+  let routePath = $derived($page.url.pathname);
+  let isHome    = $derived(routePath === '/');
+  let isMusic   = $derived(routePath === '/music');
+
   onMount(async () => {
+    // Restore saved theme before anything renders
+    try {
+      const saved = localStorage.getItem('dashboard.theme');
+      if (saved === 'light' || saved === 'dark') {
+        document.documentElement.dataset.theme = saved;
+      }
+    } catch { /* ignore */ }
+
     try {
       const res = await fetch('/api/config');
       if (res.ok) configStore.set(await res.json());
@@ -51,22 +100,138 @@
 
     configLoaded = true;
 
+    // Load entity baseline before streams start so diff is ready
+    await notificationStore.loadBaseline();
+
     if (configStore.haTokenSet()) {
       // Start HA + zones streams as soon as we have credentials (wizard needs entity data)
       _stopHa    = startHaStream();
       _stopZones = startZonesStream();
-
-      // Start idle detection only when fully set up (no screensaver during wizard)
-      if (configStore.isSetupDone()) {
-        _stopIdle = startIdleDetection();
-      }
     }
+    // NOTE: idle detection (screensaver) is started by the effect below, not
+    // here — so it also kicks in right after the wizard completes in the same
+    // session, instead of only after a reload.
 
-    return () => { _stopHa?.(); _stopIdle?.(); _stopZones?.(); };
+    // Window-level edge gestures. passive: true — we only observe, never
+    // preventDefault, so scrolling / dragScroll stay smooth.
+    window.addEventListener('pointerdown',   onWinPointerDown, { passive: true });
+    window.addEventListener('pointermove',   onWinPointerMove, { passive: true });
+    window.addEventListener('pointerup',     onWinPointerUp,   { passive: true });
+    window.addEventListener('pointercancel', onWinPointerUp,   { passive: true });
+
+    // New-device detection. Entities do not gain new members several times per
+    // second — polling every 60s is ample and keeps the hot path clean.
+    const runDeviceCheck = () => {
+      const ids = Object.keys(haStore.entities);
+      if (ids.length === 0) return;
+      if (!seededBaseline) {
+        seededBaseline = true;
+        notificationStore.seedBaselineIfEmpty(ids);
+        return;                       // don't diff on the very first pass
+      }
+      notificationStore.checkForNewEntities(ids);
+    };
+    const firstDeviceCheck = setTimeout(runDeviceCheck, 5_000);   // let first snapshot settle
+    const deviceCheckTimer = setInterval(runDeviceCheck, 60_000);
+
+    return () => {
+      _stopHa?.(); _stopIdle?.(); _stopZones?.();
+      window.removeEventListener('pointerdown',   onWinPointerDown);
+      window.removeEventListener('pointermove',   onWinPointerMove);
+      window.removeEventListener('pointerup',     onWinPointerUp);
+      window.removeEventListener('pointercancel', onWinPointerUp);
+      clearTimeout(firstDeviceCheck);
+      clearInterval(deviceCheckTimer);
+    };
   });
 
   function handleWizardComplete() {
     // Config saved — isSetupDone will flip to true
+  }
+
+  // Auto-hide scrollbar: reveal the thumb only while actively scrolling,
+  // fade it out ~800ms after the user stops.
+  let shellMainEl = $state<HTMLElement | null>(null);
+  let scrollHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Pull-to-refresh
+  let pullDistance = $state(0);
+  let pullStartY = 0;
+  let pulling = false;
+  let refreshing = $state(false);
+  const PULL_THRESHOLD = 90;
+
+  function onTouchStart(e: TouchEvent) {
+    if (!shellMainEl) return;
+    const atTop    = shellMainEl.scrollTop <= 0;
+    const atBottom = shellMainEl.scrollTop + shellMainEl.clientHeight >= shellMainEl.scrollHeight - 1;
+    if (atTop || atBottom) {
+      pulling    = true;
+      pullStartY = e.touches[0].clientY;
+    }
+  }
+
+  function onTouchMove(e: TouchEvent) {
+    if (!pulling) return;
+    pullDistance = e.touches[0].clientY - pullStartY;
+  }
+
+  async function onTouchEnd() {
+    if (!pulling) return;
+    pulling = false;
+    if (Math.abs(pullDistance) >= PULL_THRESHOLD && !refreshing) {
+      refreshing = true;
+      try { await fetch('/api/settings/refresh', { method: 'POST' }); } catch { /* ignore */ }
+      setTimeout(() => { refreshing = false; }, 800);
+    }
+    pullDistance = 0;
+  }
+
+  // ── Edge gestures (window-level; NO overlay elements, so taps still reach
+  //    the BottomNav and header). Pointer events only — touch events do not fire
+  //    reliably on the Waveshare DSI panel (see src/lib/actions/dragScroll.ts).
+  // Bottom band must cover the ~104px BottomNav so swipes starting on the nav
+  // register reliably (a 60px band left most of the nav dead).
+  const EDGE_BAND_TOP    = 90;    // px from the top where a down-swipe may start
+  const EDGE_BAND_BOTTOM = 150;   // px from the bottom where an up-swipe may start
+  const EDGE_TRIGGER     = 48;    // px of travel required to open a panel
+
+  let gStartY = 0;
+  let gFrom: 'top' | 'bottom' | null = null;
+  let gPointer: number | null = null;
+
+  function onWinPointerDown(e: PointerEvent) {
+    gFrom = null;                           // reset any stale gesture
+    if (lockState.locked) return;
+    if (!isSetupDone) return;               // no gestures during setup
+    gPointer = e.pointerId;
+    gStartY  = e.clientY;
+    const h  = window.innerHeight;
+    if (e.clientY <= EDGE_BAND_TOP)             gFrom = 'top';
+    else if (e.clientY >= h - EDGE_BAND_BOTTOM) gFrom = 'bottom';
+  }
+
+  function onWinPointerMove(e: PointerEvent) {
+    if (gFrom === null || e.pointerId !== gPointer) return;
+    const dy = e.clientY - gStartY;
+    if (gFrom === 'top' && dy > EDGE_TRIGGER) {
+      controlOpen = true;
+      gFrom = null;
+    } else if (gFrom === 'bottom' && -dy > EDGE_TRIGGER) {
+      notifOpen = true;
+      gFrom = null;
+    }
+  }
+
+  function onWinPointerUp() { gFrom = null; gPointer = null; }
+
+  function handleShellScroll() {
+    if (!shellMainEl) return;
+    shellMainEl.classList.add('is-scrolling');
+    if (scrollHideTimer) clearTimeout(scrollHideTimer);
+    scrollHideTimer = setTimeout(() => {
+      shellMainEl?.classList.remove('is-scrolling');
+    }, 800);
   }
 
   // While the QR screen is showing, poll /api/config every 2s to detect when
@@ -94,10 +259,60 @@
     return () => clearInterval(id);
   });
 
+  // New-device detection runs on a 60s timer in onMount (not on every patch).
+  let seededBaseline = false;
+
+  // HA connection change → notification/log
+  let wasConnected = true;
+  $effect(() => {
+    const c = haStore.connected;
+    if (!c && wasConnected) {
+      notificationStore.addNotification('warning', 'Home Assistant disconnected',
+        'Lost connection to Home Assistant. Retrying…');
+      notificationStore.addLog('HA connection lost');
+    } else if (c && !wasConnected) {
+      notificationStore.addLog('HA connection restored');
+    }
+    wasConnected = c;
+  });
+
   let showScreensaver = $derived(isSetupDone && idleState.isIdle);
-  let screensaverHasMusic = $derived(
-    musicState.active?.state === 'playing' || musicState.active?.state === 'paused',
-  );
+
+  // Track when playback last entered "paused" so the music screensaver
+  // expires after 2 minutes of being paused rather than showing indefinitely.
+  let pausedSince = $state<number | null>(null);
+  let nowTick     = $state(Date.now());
+
+  $effect(() => {
+    const st = musicState.active?.state;
+    if (st === 'paused') {
+      if (pausedSince === null) pausedSince = Date.now();
+    } else {
+      pausedSince = null;
+    }
+  });
+
+  // Only run the ticker while the screensaver is up AND playback is paused —
+  // the only situation where the 2-minute grace period can expire.
+  $effect(() => {
+    if (!showScreensaver) return;
+    if (musicState.active?.state !== 'paused') return;
+
+    const id = setInterval(() => { nowTick = Date.now(); }, 1000);
+    return () => clearInterval(id);
+  });
+
+  const PAUSE_GRACE_MS = 2 * 60 * 1000;
+
+  let screensaverHasMusic = $derived.by(() => {
+    const st = musicState.active?.state;
+    if (st === 'playing') return true;
+    if (st === 'paused') {
+      if (pausedSince === null) return true;
+      return (nowTick - pausedSince) < PAUSE_GRACE_MS;
+    }
+    return false;
+  });
 
   let sectionBeforeScreensaver = $state($page.url.pathname);
   $effect(() => {
@@ -163,6 +378,8 @@
 
   let lightsOn = $derived(entity(EID.lights)?.state === 'on');
 
+  // All sensors shown at all times — open/on pills are full opacity, closed/off are
+  // rendered by StatusPillRow at reduced opacity so the bar informs without alarming.
   let pills = $derived<PillDescriptor[]>([
     alarmPill(),
     doorPill('main-door',   'Main Door',            doorState(EID.mainDoor,   binarySensorMainDoor)),
@@ -170,14 +387,22 @@
     doorPill('back-perim',  'Back Perimeter',       doorState(EID.backPerim,  binarySensorBackPerimeter)),
     doorPill('front-perim', 'Front-Side Perimeter', doorState(EID.frontPerim, binarySensorFrontSidePerimeter)),
     {
-      id:       'outdoor-lights',
-      iconId:   'lightbulb',
-      label:    'Outdoor Lights',
-      status:   lightsOn ? 'On' : 'Off',
+      id: 'outdoor-lights', iconId: 'lightbulb',
+      label: 'Outdoor Lights', status: lightsOn ? 'On' : 'Off',
       dotColor: lightsOn ? 'var(--color-accent-light)' : 'var(--color-accent-neutral)',
-      isAlert:  false,
+      isAlert: false,
     },
   ]);
+
+  function isActivePill(p: PillDescriptor): boolean {
+    if (p.isTriggered) return true;
+    if (p.status === 'Open') return true;
+    if (p.status === 'On') return true;
+    if (p.status === 'Armed Home' || p.status === 'Armed Away') return true;
+    return false;
+  }
+
+  let homePills = $derived(pills.filter(isActivePill));
 </script>
 
 <!-- If on /setup route, ONLY render the slot (skip all kiosk logic) -->
@@ -191,6 +416,26 @@
     <SetupWizard onComplete={handleWizardComplete} />
   {/if}
 
+  <!-- Edge gestures are detected at window level (see onMount) — no overlay
+       elements, so BottomNav / header taps are never intercepted. -->
+  <ControlCenter
+    open={controlOpen}
+    onClose={() => controlOpen = false}
+    onOpenGuestConfig={openGuestConfig}
+    onExitGuest={exitGuest}
+  />
+  <NotificationCenter open={notifOpen} onClose={() => notifOpen = false} />
+
+  <!-- Guest mode: config sheet + PIN-gated exit -->
+  <GuestConfigSheet open={guestConfigOpen} onClose={() => guestConfigOpen = false} />
+  <PinPrompt
+    open={guestExitPromptOpen}
+    title="Exit Guest Mode"
+    subtitle="Enter your PIN to show everything again"
+    onSuccess={() => { guestState.disable(); guestExitPromptOpen = false; }}
+    onClose={() => guestExitPromptOpen = false}
+  />
+
   <!-- Main dashboard layout (only when setup complete) -->
   <div class="layout" class:hidden={!configLoaded || !isSetupDone}>
     <header class="shell-header">
@@ -198,16 +443,32 @@
         haConnected={haStore.connected}
         locationLabel={configStore.display.locationLabel || 'Master Bathroom'}
       />
-      <div class="pill-row-wrap">
-        <StatusPillRow {pills} />
-      </div>
+      {#if !isMusic && (!isHome || homePills.length > 0)}
+        <div class="pill-row-wrap">
+          <StatusPillRow pills={isHome ? homePills : pills} />
+        </div>
+      {/if}
     </header>
 
-    <main class="shell-main">
+    <main
+      class="shell-main"
+      bind:this={shellMainEl}
+      onscroll={handleShellScroll}
+      ontouchstart={onTouchStart}
+      ontouchmove={onTouchMove}
+      ontouchend={onTouchEnd}
+      use:dragScroll
+    >
       <slot />
     </main>
 
-    <BottomNav tabs={configStore.tabs} />
+    <BottomNav tabs={navTabs} />
+
+    {#if refreshing}
+      <div class="refresh-indicator">
+        <div class="refresh-spinner"></div>
+      </div>
+    {/if}
   </div>
 
   <!-- Screensaver overlay -->
@@ -217,7 +478,9 @@
         player={screensaverHasMusic ? musicState.active : null}
         locationLabel={configStore.display.locationLabel || 'Master Bathroom'}
         temperature={haStore.entities['sensor.living_room_thermostat_current_temperature']?.state ?? null}
-        calendarEvents={haStore.calendarEvents ?? []}
+        calendarEvents={guestState.homeWidgetVisible('calendar') ? (haStore.calendarEvents ?? []) : []}
+        pills={pills}
+        notifCount={notificationStore.unreadCount}
         onClose={() => {
           window.dispatchEvent(new MouseEvent('mousemove'));
           if (sectionBeforeScreensaver && sectionBeforeScreensaver !== $page.url.pathname) {
@@ -229,28 +492,29 @@
   {/if}
 {/if}
 
-<style>
-  :global(:root) {
-    --color-canvas: #0a0a0c;
-    --color-surface-1: #1a1a1f;
-    --color-surface-2: #232328;
-    --color-text-primary: #ffffff;
-    --color-text-secondary: rgba(255, 255, 255, 0.65);
-    --color-text-tertiary: rgba(255, 255, 255, 0.45);
-    --color-accent-music: #9b7bb5;
-    --color-accent-safe: #6b9b7d;
-    --color-accent-triggered: #d67c7c;
-    --color-accent-alert: #f0b96f;
-    --color-accent-light: #f0d96f;
-    --color-accent-neutral: rgba(255, 255, 255, 0.25);
-  }
+<!-- Child-lock overlay — sits above EVERYTHING (setup, kiosk, screensaver) -->
+<ChildLockOverlay />
 
+<style>
   :global(body) {
     margin: 0;
     background-color: var(--color-canvas);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
+    /* Touch kiosk: never select/highlight text. Swiping panels (Control /
+       Notification Center) was drag-selecting the text underneath. */
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* …but text fields must still allow a caret + selection (wizard room name). */
+  :global(input),
+  :global(textarea) {
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   .layout {
@@ -264,30 +528,81 @@
     display: none;
   }
 
-  /* Sticky header — stays pinned, content scrolls underneath */
+  /* Header stays pinned because it's a flex-shrink:0 sibling outside the
+     scrollable .shell-main — not because of sticky positioning (which does
+     nothing useful here since this element never scrolls with its content). */
   .shell-header {
     flex-shrink: 0;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    padding: clamp(10px, 1.2vh, 16px) clamp(14px, 1.8vw, 24px) 0;
+    padding: clamp(14px, 1.8vh, 24px) clamp(14px, 1.8vw, 24px) clamp(10px, 1.2vh, 16px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     background: var(--color-canvas);
   }
 
   .pill-row-wrap {
-    padding-top: clamp(6px, 0.8vh, 10px);
+    padding-top: clamp(10px, 1.3vh, 18px);
   }
 
-  /* Main content — scrollable, touch-friendly */
+  /* Main content — scrollable, touch-friendly.
+     Scrolling is driven by the dragScroll action (use:dragScroll), not native
+     overflow drag — on this touchscreen, native touch-scroll gesture
+     recognition doesn't reliably engage across the nested fixed/flex
+     container chain, so dragging falls back to text-selection instead of
+     scrolling. dragScroll drives scrollTop directly from pointer events,
+     sidestepping that entirely (see src/lib/actions/dragScroll.ts). */
   .shell-main {
     flex: 1;
+    min-height: 0;                 /* critical: lets this flex child scroll */
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
-    scrollbar-width: none;
+    overscroll-behavior-y: auto;
+    -webkit-user-select: none;
+    user-select: none;
+    position: relative;
+
+    /* Auto-hide scrollbar: transparent track, thumb only shows while scrolling */
+    scrollbar-width: thin;                       /* Firefox */
+    scrollbar-color: transparent transparent;    /* hidden at rest (FF) */
+    transition: scrollbar-color 300ms;
   }
 
-  .shell-main::-webkit-scrollbar { display: none; }
+  /* When actively scrolling (JS adds .is-scrolling), reveal the FF thumb */
+  .shell-main.is-scrolling {
+    scrollbar-color: rgba(255,255,255,0.25) transparent;
+  }
+
+  /* Pull-to-refresh spinner */
+  .refresh-indicator {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 150;
+    pointer-events: none;
+  }
+  .refresh-spinner {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-text-secondary);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* WebKit (Chromium on the Pi): thin transparent track, thumb fades in on scroll */
+  .shell-main::-webkit-scrollbar {
+    width: 8px;
+    background: transparent;
+  }
+  .shell-main::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .shell-main::-webkit-scrollbar-thumb {
+    background: transparent;            /* invisible at rest */
+    border-radius: 4px;
+    transition: background 300ms;
+  }
+  .shell-main.is-scrolling::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.25); /* visible while scrolling */
+  }
+
 </style>

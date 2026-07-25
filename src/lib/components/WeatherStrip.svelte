@@ -9,17 +9,7 @@
     locationName = '',
   }: {
     weather: WeatherState;
-    /**
-     * 7-day daily forecast from weather.get_forecasts service call.
-     * Provided separately because HA 2024.4+ removed forecast from entity attributes.
-     * Falls back to weather.attributes.forecast (placeholder / legacy) when empty.
-     */
     forecast?: WeatherForecastDay[];
-    /**
-     * Location name from HA config (e.g. "Folsom"). Shown below "Forecast" label.
-     * Falls back to weather entity's friendly_name minus the word "Forecast".
-     * Empty string → nothing rendered.
-     */
     locationName?: string;
   } = $props();
 
@@ -44,60 +34,40 @@
   }
 
   function dayLabel(datetime: string, idx: number): string {
-    if (idx === 0) return 'Today';
     if (idx === 1) return 'Tmrw';
     return new Date(datetime).toLocaleDateString('en-US', { weekday: 'short' });
   }
 
-  // Use server-provided forecast if available; fall back to placeholder attribute
   let activeForecast = $derived(
     (forecast.length > 0 ? forecast : (weather.attributes.forecast ?? [])).slice(0, 7)
   );
 </script>
 
 <div class="weather">
-  <!-- Section label -->
   <div class="section-label">
     <Cloud size={13} strokeWidth={2} />
     <span>Weather</span>
   </div>
 
-  <!-- Main card -->
   <div class="card">
-    <!-- Top row: condition (left) / current temp (right) -->
-    <div class="top-row">
-      <div class="left">
-        <span class="cond-icon">
-          <!-- 80-96px condition icon — fills the card height proportionally -->
-          <WeatherIcon condition={weather.state} size={110} strokeWidth={1.1} />
-        </span>
-        <div class="cond-text">
-          <span class="cond-label">{condLabel(weather.state)}</span>
-          <span class="cond-sub">Forecast</span>
-          {#if locationName}
-            <span class="cond-location">{locationName}</span>
-          {/if}
-        </div>
-      </div>
-
-      <div class="right">
-        <span class="temp num">{weather.attributes.temperature}{weather.attributes.temperature_unit}</span>
-        <div class="hi-lo">
-          <span class="hi num">H: {activeForecast[0]?.temperature ?? '–'}°</span>
-          <span class="lo num">L: {activeForecast[0]?.templow ?? '–'}°</span>
-        </div>
-      </div>
+    <!-- Left: today -->
+    <div class="today">
+      <WeatherIcon condition={weather.state} size={64} strokeWidth={1.2} />
+      <span class="temp num">{weather.attributes.temperature}{weather.attributes.temperature_unit}</span>
+      <span class="cond-label">{condLabel(weather.state)}</span>
+      {#if locationName}
+        <span class="location">{locationName}</span>
+      {/if}
     </div>
 
-    <!-- 7-day forecast strip -->
-    <div class="forecast">
-      {#each activeForecast as day, i}
-        <div class="day">
-          <span class="day-label">{dayLabel(day.datetime, i)}</span>
-          <span class="day-icon">
-            <!-- 56-64px — larger icons per spec, small temps intentional contrast -->
-            <WeatherIcon condition={day.condition} size={52} strokeWidth={1.3} />
-          </span>
+    <div class="divider-v"></div>
+
+    <!-- Right: horizontal 5-day forecast -->
+    <div class="forecast-row">
+      {#each activeForecast.slice(1, 6) as day, i (day.datetime)}
+        <div class="day-col">
+          <span class="day-name">{dayLabel(day.datetime, i + 1)}</span>
+          <span class="day-icon"><WeatherIcon condition={day.condition} size={42} strokeWidth={1.4} /></span>
           <span class="day-hi num">{day.temperature}°</span>
           <span class="day-lo num">{day.templow}°</span>
         </div>
@@ -107,157 +77,81 @@
 </div>
 
 <style>
-  .weather {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
+  .weather { height: 100%; display: flex; flex-direction: column; gap: 0.35rem; }
 
   .section-label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    color: var(--color-text-tertiary);
-    font-size: var(--type-label);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0 0.2rem;
+    display: flex; align-items: center; gap: 5px;
+    color: var(--color-text-tertiary); font-size: var(--type-label);
+    font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 0 0.2rem; flex-shrink: 0;
   }
 
   .card {
-    flex: 1;
-    min-height: 0;
+    flex: 1; min-height: 0;
     background: var(--color-surface-1);
-    border-radius: 28px;
-    border: 1px solid var(--color-border);
+    border-radius: 28px; border: 1px solid var(--color-border);
     box-shadow: inset 0 1px 0 var(--color-highlight);
-    padding: 0.7rem 1.6rem 0.55rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  /* ── Top row ── */
-  .top-row {
-    display: flex;
+    padding: 16px 28px;
+    display: grid;
+    grid-template-columns: auto 1px 1fr;
     align-items: center;
-    justify-content: space-between;
-    flex: 1;
-    min-height: 0;
+    gap: 20px;
   }
 
-  .left {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
+  /* ── Today (left) ── */
+  .today {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding-right: 4px;
   }
 
-  .cond-icon {
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-  }
-
-  .cond-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15em;
-  }
-
-  /* Condition word: 44-48px, scales with viewport width */
-  .cond-label {
-    font-size: clamp(32px, 3.33vw, 48px);
-    font-weight: 300;
-    color: var(--color-text-primary);
-    line-height: 1;
-  }
-
-  .cond-sub,
-  .cond-location {
-    font-size: var(--type-label);
-    font-weight: 500;
-    color: var(--color-text-tertiary);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-  }
-
-  .right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.15rem;
-  }
-
-  /* Current temp: 96-104px — large, dominant number */
   .temp {
-    font-size: clamp(72px, 7.22vw, 104px);
-    font-weight: 200;
-    letter-spacing: -0.03em;
-    color: var(--color-text-primary);
-    line-height: 1;
+    font-size: clamp(48px, 6vw, 78px);
+    font-weight: 200; letter-spacing: -0.03em;
+    color: var(--color-text-primary); line-height: 1;
   }
 
-  .hi-lo {
-    display: flex;
-    gap: 0.5rem;
+  .cond-label {
+    font-size: clamp(15px, 1.7vw, 22px);
+    font-weight: 300; color: var(--color-text-primary); text-align: center;
   }
 
-  .hi {
-    font-size: var(--type-caption);
-    font-weight: 500;
-    color: var(--color-text-primary);
+  .location {
+    font-size: var(--type-label); color: var(--color-text-tertiary);
+    text-transform: uppercase; letter-spacing: 0.07em; font-weight: 500;
+    text-align: center; margin-top: 2px;
   }
 
-  .lo {
-    font-size: var(--type-caption);
-    font-weight: 400;
-    color: var(--color-text-tertiary);
-  }
+  /* ── Vertical divider ── */
+  .divider-v { width: 1px; align-self: stretch; background: var(--color-border); }
 
-  /* ── 7-day forecast strip ── */
-  .forecast {
-    display: flex;
-    gap: 2px;
-  }
-
-  .day {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+  /* ── Horizontal 5-day forecast ── */
+  .forecast-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
     align-items: center;
-    justify-content: center;
-    gap: 2px;
-    padding: 0.25rem 0.15rem;
-    border-radius: 10px;
-    min-width: 0;
+    height: 100%;
+    gap: 4px;
   }
 
-  .day-icon {
-    display: flex;
-    align-items: center;
+  .day-col {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 4px 0;
   }
 
-  .day-label {
-    font-size: 10px;
-    font-weight: 600;
+  .day-name {
+    font-size: clamp(15px, 1.6vw, 19px); font-weight: 500;
     color: var(--color-text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
   }
 
-  /* Forecast temps intentionally smaller — large icons do the visual work */
+  .day-icon { display: flex; align-items: center; }
+
   .day-hi {
-    font-size: clamp(13px, 1.25vw, 18px);
-    font-weight: 500;
+    font-size: clamp(18px, 1.9vw, 24px); font-weight: 600;
     color: var(--color-text-primary);
   }
 
   .day-lo {
-    font-size: clamp(13px, 1.25vw, 18px);
-    font-weight: 400;
+    font-size: clamp(16px, 1.7vw, 21px); font-weight: 400;
     color: var(--color-text-tertiary);
   }
 </style>

@@ -61,9 +61,9 @@
     aria-label={isPlaying ? 'Pause' : 'Play'}
   >
     {#if isPlaying}
-      <Pause size={large ? 44 : 52} strokeWidth={1.8} />
+      <Pause size={large ? 44 : 46} strokeWidth={1.8} />
     {:else}
-      <Play  size={large ? 44 : 52} strokeWidth={1.8} />
+      <Play  size={large ? 44 : 46} strokeWidth={1.8} />
     {/if}
   </button>
 

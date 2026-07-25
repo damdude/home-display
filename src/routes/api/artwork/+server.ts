@@ -8,17 +8,16 @@
  * This only fires for entity_picture values that HA returns as relative
  * paths (e.g. some local media, TTS, or older integrations).
  */
-import { env }   from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
+import { getActiveCredentials } from '$lib/server/ha/connection.js';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {
   const path = url.searchParams.get('path');
   if (!path) error(400, 'path query param required');
 
-  const haUrl   = env.HA_URL;
-  const haToken = env.HA_TOKEN;
-  if (!haUrl || !haToken) error(500, 'HA_URL / HA_TOKEN not set');
+  const { url: haUrl, token: haToken } = getActiveCredentials();
+  if (!haUrl || !haToken) error(500, 'HA credentials not available');
 
   // Only proxy HA-relative paths — never proxy arbitrary URLs
   if (!path.startsWith('/')) error(400, 'path must be a HA-relative path');

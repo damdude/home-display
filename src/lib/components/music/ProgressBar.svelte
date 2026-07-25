@@ -89,11 +89,11 @@
   .bar {
     position: relative;
     width: 100%;
-    height: 8px;
+    height: 6px;
     border-radius: 999px;
   }
   .bar.seekable { cursor: pointer; }
-  .large .bar   { height: 12px; }
+  .large .bar   { height: 10px; }
 
   /* Unfilled track — fills the entire bar */
   .track {

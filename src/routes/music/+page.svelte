@@ -92,6 +92,9 @@
     </div>
   </div>
 
+  <!-- ── Controls block — fills remaining height down to screen bottom ──── -->
+  <div class="controls">
+
   <!-- ── 3. Progress bar ────────────────────────────────────────────────── -->
   <div class="zone zone-progress" style:opacity={idleOpacity}>
     {#if !hasTrack || player?.media.duration == null}
@@ -186,6 +189,8 @@
     <QuickStartRow />
   </div>
 
+  </div><!-- /controls -->
+
 </div>
 
 <!-- Cast picker sheet (fixed overlay) -->
@@ -196,19 +201,39 @@
 {/if}
 
 <style>
-  /* ── Full page grid — 7 rows, no scroll ── */
+  /* ── Full page — flex column filling the screen ──
+     Art + track take their natural height; the .controls block takes ALL
+     remaining height and distributes it evenly, so the control stack
+     extends to the screen bottom with no dead gap beneath it. */
   .page {
     height: 100%;
-    display: grid;
-    grid-template-rows: 38fr 10fr 6fr 9fr 6fr 7fr 11fr;
+    display: flex;
+    flex-direction: column;
     gap: clamp(4px, 0.55vh, 8px);
     padding: clamp(4px, 0.4vh, 6px) 6vw clamp(4px, 0.4vh, 6px);
-    overflow: hidden;
     box-sizing: border-box;
     background: var(--color-canvas);
   }
 
   .zone { min-height: 0; display: flex; flex-direction: column; justify-content: center; }
+
+  .zone-art   { flex: 0 0 auto; }
+  .zone-track { flex: 0 0 auto; min-height: clamp(56px, 8vh, 88px); }
+
+  /* Controls block — fills to screen bottom, contents spread evenly */
+  .controls {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    gap: clamp(4px, 0.55vh, 8px);
+  }
+  .zone-progress { flex: 0 0 auto; }
+  .zone-transport{ flex: 0 0 auto; min-height: clamp(56px, 8vh, 96px); }
+  .zone-volume   { flex: 0 0 auto; }
+  .zone-utility  { flex: 0 0 auto; }
+  .zone-quick    { flex: 0 0 auto; }
 
   /* ── 1. Artwork ── */
   .zone-art { align-items: center; overflow: hidden; }
@@ -220,8 +245,8 @@
 
   .artwork {
     position: relative;
-    width:  min(55vw, 42vh);
-    height: min(55vw, 42vh);
+    width:  min(76vw, 44vh);
+    height: min(76vw, 44vh);
     border-radius: 20px;
     overflow: hidden;
     background: var(--color-surface-2);

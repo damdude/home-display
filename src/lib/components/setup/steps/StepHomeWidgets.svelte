@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Cloud, CalendarDays, Thermometer, Zap, Music2 } from 'lucide-svelte';
+  import { dragScroll } from '$lib/actions/dragScroll.js';
 
   interface Props {
     value:      string[];
@@ -33,7 +34,7 @@
     <p>Choose what to show on the Home tab.</p>
   </div>
 
-  <div class="step-body">
+  <div class="step-body" use:dragScroll>
     <div class="content-list">
       {#each WIDGETS as { id, label, desc, Icon }}
         {@const on = value.includes(id)}
@@ -45,8 +46,7 @@
             <span class="row-label">{label}</span>
             <span class="row-desc">{desc}</span>
           </div>
-          <!-- iOS-style toggle -->
-          <span class="toggle" class:on></span>
+          <span class="check" class:on></span>
         </button>
       {/each}
     </div>
@@ -87,16 +87,16 @@
 
   .option-row {
     display: flex; align-items: center; gap: 16px;
-    padding: 28px 32px;
+    padding: 30px 36px;
     background: #111;
     border: 2px solid rgba(255,255,255,0.08);
-    border-radius: 18px;
+    border-radius: 20px;
     color: rgba(255,255,255,0.45);
-    font-size: 28px; font-weight: 500;
+    font-size: 32px; font-weight: 500;
     cursor: pointer; text-align: left;
     transition: background 120ms, border-color 120ms, color 120ms;
     -webkit-tap-highlight-color: transparent;
-    min-height: 92px; width: 100%;
+    min-height: 104px; width: 100%;
   }
   .option-row.selected {
     background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.4); color: #fff;
@@ -113,26 +113,17 @@
   .option-row.selected .row-icon { background: rgba(255,255,255,0.1); color: #fff; }
 
   .row-text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-  .row-label { font-size: 28px; font-weight: 600; }
-  .row-desc  { font-size: 18px; color: rgba(255,255,255,0.28); }
+  .row-label { font-size: 32px; font-weight: 600; }
+  .row-desc  { font-size: 20px; color: rgba(255,255,255,0.28); }
   .option-row.selected .row-desc { color: rgba(255,255,255,0.48); }
 
-  /* iOS-style toggle */
-  .toggle {
-    width: 50px; height: 28px; border-radius: 999px;
-    background: rgba(255,255,255,0.15); flex-shrink: 0;
-    position: relative; transition: background 200ms;
+  /* Selected indicator — plain rounded circle, no tick glyph */
+  .check {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    transition: background 150ms, border-color 150ms;
   }
-  .toggle::after {
-    content: '';
-    position: absolute; top: 4px; left: 4px;
-    width: 20px; height: 20px; border-radius: 50%;
-    background: rgba(255,255,255,0.6);
-    transition: transform 200ms, background 200ms;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-  }
-  .toggle.on { background: rgba(255,255,255,0.82); }
-  .toggle.on::after { transform: translateX(22px); background: #000; }
+  .check.on { background: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.9); }
 
   .step-footer {
     flex-shrink: 0; display: flex; gap: 16px;

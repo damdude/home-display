@@ -81,11 +81,10 @@
 </div>
 
 <style>
+  /* Natural content height — no longer its own scroll container; the
+     parent .shell-main scrolls when the floor/zone list overflows. */
   .zones-page {
-    height: 100%;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+    min-height: min-content;
     padding: clamp(8px, 1vh, 12px) 5vw;
     display: flex;
     flex-direction: column;

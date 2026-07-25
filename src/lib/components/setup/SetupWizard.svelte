@@ -2,12 +2,14 @@
   import { fly, fade }              from 'svelte/transition';
   import { onMount }                from 'svelte';
   import { configStore }            from '$lib/stores/configStore.svelte.js';
+  import { easeApple }              from '$lib/design/motion.js';
   import StepChooseRoom             from './steps/StepChooseRoom.svelte';
   import StepChooseTabs             from './steps/StepChooseTabs.svelte';
   import StepHomeWidgets            from './steps/StepHomeWidgets.svelte';
   import StepHomeEntities           from './steps/StepHomeEntities.svelte';
   import StepSecurityConfig         from './steps/StepSecurityConfig.svelte';
   import StepZonesConfig            from './steps/StepZonesConfig.svelte';
+  import StepChildLock              from './steps/StepChildLock.svelte';
   import StepDone                   from './steps/StepDone.svelte';
 
   interface Props { onComplete: () => void; }
@@ -22,15 +24,16 @@
 
   let form = $state({
     roomName:      '',
-    tabs:          ['home', 'security', 'music', 'zones'] as string[],
-    homeWidgets:   ['weather', 'calendar', 'climate', 'quick_actions', 'now_playing'] as string[],
+    tabs:          [] as string[],   // none preselected — user picks
+    homeWidgets:   [] as string[],   // none preselected — user picks
     homeEntities:  { weather: '', calendar: '', climate: '', tempSensor: '', humSensor: '' },
     cameras:       [] as string[],
     alarm:         '',
     hiddenAreaIds: [] as string[],
+    childLockPin:  '',
   });
 
-  type StepId = 'room' | 'tabs' | 'home_widgets' | 'home_entities' | 'security' | 'zones' | 'done';
+  type StepId = 'room' | 'tabs' | 'home_widgets' | 'home_entities' | 'security' | 'zones' | 'child_lock' | 'done';
 
   let steps = $derived.by<StepId[]>(() => {
     const s: StepId[] = ['room', 'tabs'];
@@ -40,23 +43,37 @@
     }
     if (form.tabs.includes('security')) s.push('security');
     if (form.tabs.includes('zones'))    s.push('zones');
+    s.push('child_lock');
     s.push('done');
     return s;
   });
 
-  let stepIndex = $state(0);
-  let direction = $state(1);   // 1 = forward, -1 = back
-  let saving    = $state(false);
+  let stepIndex     = $state(0);
+  let direction     = $state(1);   // 1 = forward, -1 = back
+  let saving        = $state(false);
+  let transitioning = $state(false);
+
+  const STEP_MS = 340;   // must match the fly duration in the template
 
   let currentStep = $derived(steps[stepIndex]);
   let progress    = $derived(Math.round((stepIndex / (steps.length - 1)) * 100));
 
   function next() {
-    if (stepIndex < steps.length - 1) { direction = 1; stepIndex++; }
+    if (transitioning) return;                       // ignore rapid/queued taps
+    if (stepIndex >= steps.length - 1) return;
+    transitioning = true;
+    direction = 1;
+    stepIndex++;
+    setTimeout(() => { transitioning = false; }, STEP_MS + 60);
   }
 
   function back() {
-    if (stepIndex > 0) { direction = -1; stepIndex--; }
+    if (transitioning) return;
+    if (stepIndex <= 0) return;
+    transitioning = true;
+    direction = -1;
+    stepIndex--;
+    setTimeout(() => { transitioning = false; }, STEP_MS + 60);
   }
 
   async function launch() {
@@ -76,6 +93,7 @@
         cameras:       form.cameras,
         alarm:         form.alarm,
         hiddenAreaIds: form.hiddenAreaIds,
+        childLockPin:  form.childLockPin,
       });
       onComplete();
     } catch (e) {
@@ -99,13 +117,13 @@
     </div>
 
     <!-- Stable wrapper — never transitions, establishes positioning context -->
-    <div class="step-wrap">
+    <div class="step-wrap" class:locked={transitioning}>
       <!-- Keyed inner — both in+out are absolute so they overlap perfectly -->
       {#key currentStep}
         <div
           class="step-inner"
-          in:fly={{ x: direction * 40, duration: 220, opacity: 1 }}
-          out:fly={{ x: direction * -40, duration: 180, opacity: 1 }}
+          in:fly={{ x: direction * 56, duration: 340, easing: easeApple, opacity: 1 }}
+          out:fly={{ x: direction * -56, duration: 340, easing: easeApple, opacity: 1 }}
         >
           {#if currentStep === 'room'}
             <StepChooseRoom bind:value={form.roomName} onContinue={next} />
@@ -138,6 +156,9 @@
               onBack={back}
               onContinue={next}
             />
+
+          {:else if currentStep === 'child_lock'}
+            <StepChildLock bind:pin={form.childLockPin} onBack={back} onContinue={next} />
 
           {:else if currentStep === 'done'}
             <StepDone roomName={form.roomName} tabs={form.tabs} {saving} onLaunch={launch} />
@@ -196,6 +217,10 @@
     overflow: hidden;
   }
 
+  /* While a step transition is animating, swallow ALL pointer input so queued
+     taps cannot land on the incoming step's buttons. */
+  .step-wrap.locked { pointer-events: none; }
+
   /* Inner keyed div — both in+out are absolute so they overlap perfectly.
      Does NOT scroll itself — each step's own .step-body owns its scroll
      region. A scrollable ancestor here would steal the touch-scroll
@@ -207,6 +232,10 @@
     background: #000;
     display: flex; flex-direction: column;
     overflow: hidden;
+    /* GPU layer promotion for smooth slides on the Pi */
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
   /* Steps fill step-inner */

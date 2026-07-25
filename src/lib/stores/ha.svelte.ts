@@ -96,7 +96,10 @@ export function startHaStream(): () => void {
 
         case 'patch':
           if (msg.entityId && msg.state) {
-            haStore.entities = { ...haStore.entities, [msg.entityId]: msg.state };
+            // Mutate the single key. Svelte 5's deep proxy makes this fine-grained:
+            // only consumers of THIS entity re-run. Do NOT spread the whole map —
+            // that changes the object reference and invalidates every derived in the app.
+            haStore.entities[msg.entityId] = msg.state;
           }
           break;
 

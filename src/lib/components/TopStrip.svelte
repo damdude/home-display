@@ -1,20 +1,17 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Sun, Moon, Bell, Settings } from 'lucide-svelte';
-  import { goto } from '$app/navigation';
-  import { zonesStore } from '$lib/stores/zonesStore.svelte.js';
+  import { Sun, Moon, Settings, Lock, Users } from 'lucide-svelte';
   import SettingsOverlay from '$lib/components/SettingsOverlay.svelte';
+  import { lockState } from '$lib/stores/lockState.svelte.js';
+  import { guestState } from '$lib/stores/guestState.svelte.js';
 
   // ── Props ────────────────────────────────────────────────────────────────────
   let {
     haConnected = true,
-    hasNotification = false,
     locationLabel = '',
   }: {
-    /** False while HA WebSocket is reconnecting; shows indicator on bell. */
+    /** False while HA WebSocket is reconnecting. */
     haConnected?: boolean;
-    /** True to show an accent dot on the bell icon (Phase 7+). */
-    hasNotification?: boolean;
     /** Optional room/location prefix for the greeting, e.g. "Master Bathroom". */
     locationLabel?: string;
   } = $props();
@@ -42,11 +39,6 @@
   });
   onDestroy(() => clearInterval(interval));
 
-  // ── Notification badge ────────────────────────────────────────────────────────
-  let unassignedCount = $derived(
-    zonesStore.unassigned?.entities.length ?? 0
-  );
-
   // ── Settings overlay ─────────────────────────────────────────────────────────
   let showSettings = $state(false);
 
@@ -72,27 +64,18 @@
     <p class="greeting">{greeting}</p>
   </div>
 
-  <!-- Right: bell + theme toggle -->
+  <!-- Right: child-lock indicator + theme toggle + gear -->
   <div class="actions">
-    <!-- Bell: navigates to /zones?section=unassigned when unassigned devices exist -->
-    <button
-      class="bell-btn"
-      class:reconnecting={!haConnected}
-      class:has-badge={unassignedCount > 0}
-      aria-label={!haConnected ? 'Reconnecting to Home Assistant…' : (unassignedCount > 0 ? `${unassignedCount} unassigned device${unassignedCount !== 1 ? 's' : ''}` : 'Notifications')}
-      onclick={() => {
-        if (unassignedCount > 0) void goto('/zones?section=unassigned');
-      }}
-    >
-      <Bell size={20} strokeWidth={1.6} />
-      {#if !haConnected}
-        <span class="bell-dot reconnect-dot"></span>
-      {:else if unassignedCount > 0}
-        <span class="badge">{unassignedCount > 9 ? '9+' : unassignedCount}</span>
-      {:else if hasNotification}
-        <span class="bell-dot"></span>
-      {/if}
-    </button>
+    {#if guestState.active}
+      <div class="guest-indicator" aria-label="Guest mode on" title="Guest mode on">
+        <Users size={24} strokeWidth={2} />
+      </div>
+    {/if}
+    {#if lockState.locked}
+      <div class="lock-indicator" aria-label="Child lock on" title="Child lock on">
+        <Lock size={24} strokeWidth={2} />
+      </div>
+    {/if}
 
     <button
       class="theme-btn"
@@ -100,9 +83,9 @@
       aria-label="Toggle theme"
     >
       {#if theme === 'dark'}
-        <Moon size={20} strokeWidth={1.6} />
+        <Moon size={26} strokeWidth={1.6} />
       {:else}
-        <Sun size={20} strokeWidth={1.6} />
+        <Sun size={26} strokeWidth={1.6} />
       {/if}
     </button>
 
@@ -111,7 +94,7 @@
       onclick={() => showSettings = true}
       aria-label="Settings"
     >
-      <Settings size={20} strokeWidth={1.6} />
+      <Settings size={26} strokeWidth={1.6} />
     </button>
   </div>
 </div>
@@ -121,11 +104,13 @@
 {/if}
 
 <style>
+  /* Clock + greeting centered; action buttons pinned to the right */
   .strip {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+    align-items: center;
+    justify-content: center;
     width: 100%;
+    position: relative;
     padding-top: 0.1em;
   }
 
@@ -133,8 +118,10 @@
   .left {
     display: flex;
     flex-direction: column;
-    gap: 0.12em;
+    align-items: center;
+    gap: 0.1em;
     line-height: 1;
+    text-align: center;
   }
 
   .clock {
@@ -147,7 +134,7 @@
   }
 
   .greeting {
-    font-size: clamp(16px, 1.94vw, 28px);
+    font-size: clamp(20px, 2.4vw, 34px);
     font-weight: 400;
     color: var(--color-text-secondary);
     margin: 0;
@@ -156,86 +143,41 @@
 
   /* ── Right action cluster ── */
   .actions {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+  }
+
+  /* ── Guest-mode indicator ── */
+  .guest-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-accent-info) 18%, var(--color-surface-2));
+    border: 1px solid color-mix(in srgb, var(--color-accent-info) 40%, transparent);
+    color: var(--color-accent-info);
     flex-shrink: 0;
   }
 
-  /* ── Bell ── */
-  .bell-btn {
-    position: relative;
+  /* ── Child-lock indicator ── */
+  .lock-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    border: none;
-    background: none;
-    color: var(--color-text-secondary);
-    opacity: 0.55;
-    cursor: default;
-    -webkit-tap-highlight-color: transparent;
-    transition: opacity 150ms;
-  }
-
-  /* Active / has unassigned — make it tappable and visible */
-  .bell-btn.has-badge {
-    opacity: 1;
-    cursor: pointer;
-  }
-  .bell-btn.has-badge:active { opacity: 0.75; }
-
-  /* Reconnecting: pulse the bell to signal connectivity issue */
-  .bell-btn.reconnecting {
-    opacity: 1;
-    cursor: default;
-    animation: bellPulse 2s ease-in-out infinite;
+    background: color-mix(in srgb, var(--color-accent-alert) 18%, var(--color-surface-2));
+    border: 1px solid color-mix(in srgb, var(--color-accent-alert) 40%, transparent);
     color: var(--color-accent-alert);
-  }
-
-  @keyframes bellPulse {
-    0%, 100% { opacity: 0.5; }
-    50%       { opacity: 1.0; }
-  }
-
-  /* Small dot for generic notification / reconnecting */
-  .bell-dot {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--color-accent-info);
-    border: 1.5px solid var(--color-canvas);
-    pointer-events: none;
-  }
-
-  .bell-dot.reconnect-dot {
-    background: var(--color-accent-alert);
-  }
-
-  /* Numbered badge for unassigned devices */
-  .badge {
-    position: absolute;
-    top: 0;
-    right: 0;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 3px;
-    border-radius: 999px;
-    background: #C66B6B;
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-    pointer-events: none;
-    border: 1.5px solid var(--color-canvas);
+    flex-shrink: 0;
   }
 
   /* ── Theme toggle ── */
@@ -243,8 +185,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     border: none;
     background: var(--color-surface-2);
@@ -265,8 +207,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     border: none;
     background: var(--color-surface-2);

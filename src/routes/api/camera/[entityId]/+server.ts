@@ -14,8 +14,8 @@
  *   400  Bad Request — entity_id doesn't start with 'camera.'
  *   503  Service Unavailable — HA not reachable or entity unavailable
  */
-import { env } from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
+import { getActiveCredentials } from '$lib/server/ha/connection.js';
 import type { RequestHandler } from './$types';
 
 // Simple in-memory rate limiter — max 1 request per 500ms per entity
@@ -30,10 +30,9 @@ export const GET: RequestHandler = async ({ params }) => {
     error(400, `Invalid entity ID: must start with 'camera.'`);
   }
 
-  const haUrl   = env.HA_URL;
-  const haToken = env.HA_TOKEN;
+  const { url: haUrl, token: haToken } = getActiveCredentials();
   if (!haUrl || !haToken) {
-    error(500, 'HA_URL and HA_TOKEN must be set in .env');
+    error(500, 'HA credentials not available');
   }
 
   // Rate limit: reject if same entity was fetched < 500ms ago

@@ -557,6 +557,22 @@
     </div>
   </div>
 
+  <!-- ── Door sensors ─────────────────────────────────────────────────────── -->
+  <div class="sensors">
+    <div class="sensors-label">Door Sensors</div>
+    <div class="sensor-list">
+      {#each DOOR_IDS as door}
+        {@const st = haStore.entities[door.entityId]?.state}
+        {@const isOpen = st === 'on'}
+        <div class="sensor-row" class:dimmed={!isOpen}>
+          <span class="sensor-dot" class:open={isOpen}></span>
+          <span class="sensor-name">{door.label}</span>
+          <span class="sensor-state" class:open={isOpen}>{isOpen ? 'Open' : 'Closed'}</span>
+        </div>
+      {/each}
+    </div>
+  </div>
+
   <!-- ── Recent activity ────────────────────────────────────────────────────── -->
   <div class="activity">
     <div class="activity-label">Recent Activity</div>
@@ -597,14 +613,18 @@
 {/if}
 
 <style>
-  /* ── Page layout ── */
+  /* ── Page layout ──
+     Natural content height (not forced to fit one screen) so tall content
+     (e.g. many cameras, a long activity list) overflows into .shell-main's
+     scroll instead of being compressed/clipped. Each section below gets its
+     own min-height (replacing the old fr proportions) so the layout still
+     looks the same when everything fits in the viewport. */
   .security-page {
-    height: 100%;
+    min-height: min-content;
     display: grid;
-    grid-template-rows: auto 4.5fr 2.5fr 1.5fr;
+    grid-template-rows: auto auto auto auto auto;
     gap: clamp(6px, 0.8vh, 12px);
     padding: clamp(4px, 0.5vh, 8px) 5vw clamp(6px, 0.7vh, 10px);
-    overflow: hidden;
     box-sizing: border-box;
   }
 
@@ -650,7 +670,7 @@
   .camera-grid {
     display: grid;
     gap: 8px;
-    min-height: 0;
+    min-height: clamp(280px, 46vh, 520px);
     /* grid-template-columns injected via style prop based on count */
   }
 
@@ -752,7 +772,7 @@
     display: grid;
     grid-template-columns: 45fr 55fr;
     gap: 8px;
-    min-height: 0;
+    min-height: clamp(160px, 24vh, 320px);
   }
 
   /* Left tile */
@@ -944,13 +964,67 @@
 
   .mode-btn:active { transform: scale(0.96); }
 
+  /* ── Door sensors ── */
+  .sensors {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sensors-label {
+    font-size: var(--type-label);
+    font-weight: 600;
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .sensor-list {
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    box-shadow: inset 0 1px 0 var(--color-highlight);
+    overflow: hidden;
+  }
+
+  .sensor-row {
+    display: grid;
+    grid-template-columns: 12px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--color-border);
+    transition: opacity 200ms;
+  }
+  .sensor-row:last-child { border-bottom: none; }
+  .sensor-row.dimmed { opacity: 0.38; }
+
+  .sensor-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--color-accent-safe);
+    flex-shrink: 0;
+  }
+  .sensor-dot.open { background: var(--color-accent-alert); }
+
+  .sensor-name {
+    font-size: clamp(15px, 1.6vw, 22px);
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+
+  .sensor-state {
+    font-size: clamp(13px, 1.3vw, 18px);
+    font-weight: 500;
+    color: var(--color-accent-safe);
+  }
+  .sensor-state.open { color: var(--color-accent-alert); }
+
   /* ── Recent activity ── */
   .activity {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    min-height: 0;
-    overflow: hidden;
+    min-height: clamp(110px, 15vh, 220px);
   }
 
   .activity-label {
@@ -970,17 +1044,13 @@
     padding: 0.3rem 0;
   }
 
-  /* Scrollable list — clips to activity area height */
+  /* Natural-height list — grows with content; the page (and .shell-main)
+     scroll if it exceeds the viewport, capped at MAX_ACTIVITY rows anyway */
   .activity-list {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    overflow-y: auto;
-    scrollbar-width: none;
-    flex: 1;
-    min-height: 0;
   }
-  .activity-list::-webkit-scrollbar { display: none; }
 
   /* One row: [dot] [text ···] [timestamp] */
   .activity-row {

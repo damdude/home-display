@@ -49,25 +49,28 @@ function filteredZones(zones: ZoneData[]): ZoneData[] {
   return zones.filter(z => !HIDDEN_AREA_IDS.has(z.areaId) && z.entities.length > 0);
 }
 
+// Memoized — recomputes only when the registry changes, not on every read.
+const _floors = $derived.by<FloorData[]>(() => {
+  if (!_registry) return [];
+  return _registry.floors
+    .map(f => ({ ...f, zones: filteredZones(f.zones) }))
+    .filter(f => f.zones.length > 0)
+    .sort((a, b) => {
+      const ai = FLOOR_ORDER.indexOf(a.floor_id);
+      const bi = FLOOR_ORDER.indexOf(b.floor_id);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return  1;
+      return a.level - b.level;
+    });
+});
+
 export const zonesStore = {
   get loading():  boolean            { return _loading; },
   get registry(): ZoneRegistry|null  { return _registry; },
 
   /** Real floors, sorted by FLOOR_ORDER then level, empty zones stripped. */
-  get floors(): FloorData[] {
-    if (!_registry) return [];
-    return _registry.floors
-      .map(f => ({ ...f, zones: filteredZones(f.zones) }))
-      .filter(f => f.zones.length > 0)
-      .sort((a, b) => {
-        const ai = FLOOR_ORDER.indexOf(a.floor_id);
-        const bi = FLOOR_ORDER.indexOf(b.floor_id);
-        if (ai !== -1 && bi !== -1) return ai - bi;
-        if (ai !== -1) return -1;
-        if (bi !== -1) return  1;
-        return a.level - b.level;
-      });
-  },
+  get floors(): FloorData[] { return _floors; },
 
   get unassigned(): ZoneData | null {
     const u = _registry?.unassigned ?? null;

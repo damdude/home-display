@@ -7,16 +7,17 @@
  *
  * Client receives: data: { type: 'zones', data: ZoneRegistry }\n\n
  */
-import { env }   from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
+import { getActiveCredentials } from '$lib/server/ha/connection.js';
 import { subscribeZones, startZoneRefresh } from '$lib/server/ha/zones.js';
 import type { RequestHandler } from './$types';
 
 startZoneRefresh();
 
 export const GET: RequestHandler = () => {
-  if (!env.HA_URL || !env.HA_TOKEN) {
-    error(500, 'HA_URL and HA_TOKEN must be set in .env');
+  const { url, token } = getActiveCredentials();
+  if (!url || !token) {
+    error(500, 'HA credentials not available');
   }
 
   let unsub:     (() => void) | undefined;

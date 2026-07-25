@@ -20,15 +20,19 @@ import { resolveMediaPlayers, type ResolvedPlayer } from '$lib/music/playerResol
 let _selectedId     = $state<string | null>(null);
 let _castPickerOpen = $state(false);
 
+// Memoized: recomputes only when the entities it actually reads change.
+const _players = $derived(resolveMediaPlayers(haStore.entities));
+const _active  = $derived(pickActive(_players));
+
 function pickActive(players: ResolvedPlayer[]): ResolvedPlayer | null {
   if (!players.length) return null;
 
-  // Honour explicit selection if still alive
+  // Honour explicit selection if still alive. Note: a $derived must be
+  // side-effect free, so we only READ _selectedId here — we never clear it.
+  // If the selected player returns, the selection is honoured again.
   if (_selectedId) {
     const sel = players.find(p => p.controlId === _selectedId);
     if (sel) return sel;
-    // Selected entity gone — clear selection and fall through
-    _selectedId = null;
   }
 
   // Auto-select only playing or paused — never idle/off/unavailable
@@ -45,17 +49,9 @@ function pickActive(players: ResolvedPlayer[]): ResolvedPlayer | null {
 }
 
 export const musicState = {
-  get players(): ResolvedPlayer[] {
-    return resolveMediaPlayers(haStore.entities);
-  },
-
-  get active(): ResolvedPlayer | null {
-    return pickActive(this.players);
-  },
-
-  get castPickerOpen(): boolean {
-    return _castPickerOpen;
-  },
+  get players(): ResolvedPlayer[]      { return _players; },
+  get active():  ResolvedPlayer | null { return _active;  },
+  get castPickerOpen(): boolean        { return _castPickerOpen; },
 
   setActive(controlId: string): void {
     _selectedId     = controlId;

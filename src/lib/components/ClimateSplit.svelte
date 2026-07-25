@@ -80,9 +80,9 @@
         <span class="current-temp num">{climate.attributes.current_temperature}°</span>
         <span class="mode-icon" style:color={iconColor} style:opacity={isActive ? '0.9' : '0.4'}>
           {#if isHeating}
-            <Thermometer size={30} strokeWidth={1.2} />
+            <Thermometer size={34} strokeWidth={1.2} />
           {:else}
-            <Wind size={30} strokeWidth={1.2} />
+            <Wind size={34} strokeWidth={1.2} />
           {/if}
         </span>
       </div>
@@ -104,7 +104,7 @@
       </div>
 
       <div class="humidity">
-        <span class="hum-icon"><Droplets size={14} strokeWidth={1.8} /></span>
+        <span class="hum-icon"><Droplets size={16} strokeWidth={1.8} /></span>
         <span class="num">{humidity != null ? `${Math.round(humidity)}%` : '–'}</span>
         <span class="hum-label">RH</span>
       </div>
@@ -240,8 +240,8 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.4rem;
-    padding: 0.8rem 1rem;
+    gap: 8px;
+    padding: 16px 22px;
   }
 
   .temp-row {
@@ -253,7 +253,7 @@
 
   /* Current temp: slightly smaller in narrower tile */
   .current-temp {
-    font-size: clamp(48px, 5.00vw, 72px);
+    font-size: clamp(50px, 5.2vw, 74px);
     font-weight: 200;
     letter-spacing: -0.03em;
     color: var(--color-text-primary);
@@ -315,8 +315,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.6rem;
-    padding: 0.7rem 1.2rem;
+    gap: 14px;
+    padding: 16px 20px;
   }
 
   /* +/- row: horizontal */
@@ -339,8 +339,8 @@
 
   /* − and + buttons */
   .adj-btn {
-    width:  clamp(74px, 8.2vw, 112px);
-    height: clamp(74px, 8.2vw, 112px);
+    width:  clamp(96px, 11vw, 128px);
+    height: clamp(96px, 11vw, 128px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -363,8 +363,7 @@
   .adj-btn:disabled { cursor: default; pointer-events: none; }
 
   .adj-sign {
-    /* ~50% of button diameter */
-    font-size: clamp(32px, 3.5vw, 50px);
+    font-size: clamp(48px, 5vw, 66px);
     font-weight: 300;
     line-height: 1;
     color: var(--color-text-primary);
@@ -373,7 +372,7 @@
 
   /* Setpoint value: dominant number between the two buttons */
   .sp-value {
-    font-size: clamp(80px, 8.5vw, 120px);
+    font-size: clamp(52px, 5.5vw, 80px);
     font-weight: 200;
     letter-spacing: -0.03em;
     color: var(--color-text-primary);
@@ -385,7 +384,7 @@
 
   /* Auto range mode: smaller so "68–75" fits comfortably */
   .sp-value.range {
-    font-size: clamp(48px, 5vw, 72px);
+    font-size: clamp(36px, 3.8vw, 56px);
     font-weight: 300;
     letter-spacing: -0.02em;
   }
@@ -395,7 +394,7 @@
   /* Mode buttons row */
   .mode-btns {
     display: flex;
-    gap: clamp(10px, 1.5vw, 24px);
+    gap: clamp(18px, 2.4vw, 32px);
     justify-content: center;
   }
 
@@ -407,8 +406,8 @@
   }
 
   .mode-btn {
-    width:  clamp(60px, 6.4vw, 92px);
-    height: clamp(60px, 6.4vw, 92px);
+    width:  clamp(86px, 10vw, 118px);
+    height: clamp(86px, 10vw, 118px);
     border-radius: 50%;
     border: 1px solid var(--color-border);
     background: var(--color-surface-2);
@@ -441,14 +440,13 @@
 
   .mode-btn:active { transform: scale(0.9); opacity: 1; }
 
-  /* Scale icons inside mode buttons via CSS — overrides the size prop */
   .mode-btn :global(svg) {
-    width:  clamp(26px, 2.8vw, 40px);
-    height: clamp(26px, 2.8vw, 40px);
+    width:  clamp(38px, 4.2vw, 52px);
+    height: clamp(38px, 4.2vw, 52px);
   }
 
   .mode-lbl {
-    font-size: clamp(13px, 1.25vw, 18px);
+    font-size: clamp(16px, 1.5vw, 21px);
     font-weight: 500;
     color: var(--color-text-tertiary);
     letter-spacing: 0.03em;

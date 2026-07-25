@@ -251,7 +251,50 @@ export async function reconnectWithCredentials(url: string, token: string): Prom
   // Connect now with the new credentials
   await connect();
 
+  // Kick a zones registry refresh now that credentials are live, so the
+  // wizard's Zones step has data ready instead of waiting on the 8s timer.
+  // Dynamic import avoids a circular dependency (zones.ts imports
+  // getActiveCredentials from this module).
+  if (isConnected) {
+    void import('./zones.js').then(m => m.refreshZoneRegistry()).catch(() => { /* ignore */ });
+  }
+
   return isConnected;
+}
+
+/**
+ * Returns the credentials the main HA connection is currently using.
+ * Prefers the live override (set by reconnectWithCredentials) over env,
+ * so other server modules (e.g. zones) authenticate with the SAME token
+ * that the working main connection uses — avoiding stale-.env auth failures.
+ */
+export function getActiveCredentials(): { url: string | null; token: string | null } {
+  return {
+    url:   overrideUrl   ?? env.HA_URL   ?? null,
+    token: overrideToken ?? env.HA_TOKEN ?? null,
+  };
+}
+
+// ── Pull-to-refresh ───────────────────────────────────────────────────────────
+
+/**
+ * Re-broadcasts the current HA snapshot + calendar/forecast caches to all SSE
+ * subscribers, and triggers a fresh zone registry pull. Used by the
+ * pull-to-refresh gesture via /api/settings/refresh.
+ */
+export async function refreshAll(): Promise<void> {
+  if (isConnected && Object.keys(currentEntities).length > 0) {
+    broadcast({ type: 'snapshot', entities: currentEntities });
+  }
+  if (cachedForecast.length > 0) {
+    broadcast({ type: 'forecast', data: cachedForecast });
+  }
+  if (cachedCalendarEvents.length > 0 || cachedCalendarOverflow > 0) {
+    broadcast({ type: 'calendar', events: cachedCalendarEvents, overflow: cachedCalendarOverflow });
+  }
+  try {
+    await import('./zones.js').then(m => m.refreshZoneRegistry());
+  } catch { /* ignore — zones may not be ready */ }
 }
 
 // ── Service calls ─────────────────────────────────────────────────────────────

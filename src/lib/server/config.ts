@@ -39,6 +39,11 @@ export interface DashboardConfig {
   security: {
     cameras: string[];
     alarm:   string | null;
+    /**
+     * Child-lock PIN (4–6 digits), stored in plain text. This is a UX gate to
+     * stop a child from tapping around — NOT hardened security. Empty = disabled.
+     */
+    childLockPin: string;
   };
   zones: {
     hiddenAreaIds: string[];
@@ -81,7 +86,7 @@ const DEFAULT_CONFIG: DashboardConfig = {
       humSensor:  null,
     },
   },
-  security: { cameras: [], alarm: null },
+  security: { cameras: [], alarm: null, childLockPin: '' },
   zones:    { hiddenAreaIds: [] },
 };
 
