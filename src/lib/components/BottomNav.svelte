@@ -60,11 +60,12 @@
     text-decoration: none;
     color: var(--color-text-secondary);
     opacity: 0.6;
-    transition: color 300ms cubic-bezier(0.32, 0.72, 0, 1),
-                opacity 300ms cubic-bezier(0.32, 0.72, 0, 1);
+    transition: color var(--dur-standard) var(--ease-apple),
+                opacity var(--dur-standard) var(--ease-apple),
+                transform var(--dur-quick) var(--ease-spring-bounce);
     -webkit-tap-highlight-color: transparent;
   }
-  .tab:active { opacity: 0.85; }
+  .tab:active { opacity: 0.85; transform: scale(0.9); }
 
   .tab.active {
     color: var(--color-accent-info);

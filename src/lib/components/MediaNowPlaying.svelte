@@ -7,6 +7,7 @@
    *   • Media playing/paused        → screensaver-style card (art + meta + progress + transport)
    */
   import { goto }      from '$app/navigation';
+  import { fade }      from 'svelte/transition';
   import { Music2, Play, Pause, SkipBack, SkipForward, Speaker } from 'lucide-svelte';
   import CastPicker    from '$lib/components/music/CastPicker.svelte';
   import ProgressBar   from '$lib/components/music/ProgressBar.svelte';
@@ -77,13 +78,13 @@
   {#if !player || !hasMedia}
     <!-- Thin empty bar -->
     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-    <div class="empty-bar" onclick={() => goto('/music')}>
+    <div class="empty-bar" onclick={() => goto('/music')} transition:fade={{ duration: 180 }}>
       <span>Nothing playing</span>
     </div>
 
   {:else}
     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-    <div class="np-card" onclick={() => goto('/music')}>
+    <div class="np-card" onclick={() => goto('/music')} transition:fade={{ duration: 180 }}>
 
       <!-- Artwork with transport controls overlaid -->
       <div class="np-art" class:paused={!isPlaying}>

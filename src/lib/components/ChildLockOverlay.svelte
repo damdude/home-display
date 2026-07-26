@@ -9,6 +9,7 @@
    */
   import { Lock, Delete } from 'lucide-svelte';
   import { fade, scale }  from 'svelte/transition';
+  import { backOut }      from 'svelte/easing';
   import { lockState }    from '$lib/stores/lockState.svelte.js';
   import { configStore }  from '$lib/stores/configStore.svelte.js';
 
@@ -50,7 +51,7 @@
   {#if showPad}
     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="pad-backdrop" transition:fade={{ duration: 180 }} onclick={closePad}>
-      <div class="pad" transition:scale={{ duration: 220, start: 0.94 }} onclick={(e) => e.stopPropagation()}>
+      <div class="pad" transition:scale={{ duration: 260, start: 0.9, easing: backOut }} onclick={(e) => e.stopPropagation()}>
         <div class="lock-badge"><Lock size={34} strokeWidth={1.6} /></div>
         <h1>Child Lock</h1>
         <p>{pin ? 'Enter PIN to unlock' : 'Tap to unlock'}</p>
@@ -137,8 +138,9 @@
     color: var(--color-text-primary); font-size: 34px; font-weight: 400; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     -webkit-tap-highlight-color: transparent;
+    transition: transform 90ms ease, background 120ms ease;
   }
-  .key:active { background: var(--color-surface-3, rgba(127,127,127,0.15)); }
+  .key:active { background: var(--color-surface-3, rgba(127,127,127,0.15)); transform: scale(0.9); }
   .key-empty { visibility: hidden; }
   .key-del { font-size: 0; }
 

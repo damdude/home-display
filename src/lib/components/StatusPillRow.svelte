@@ -13,6 +13,9 @@
     DoorOpen, DoorClosed,
     Lightbulb,
   } from 'lucide-svelte';
+  import { flip } from 'svelte/animate';
+  import { scale } from 'svelte/transition';
+  import { expoOut } from 'svelte/easing';
   import type { PillDescriptor } from '$lib/data/placeholder.js';
 
   let { pills }: { pills: PillDescriptor[] } = $props();
@@ -24,6 +27,9 @@
       class="pill"
       class:triggered={pill.isTriggered}
       style:--pill-color={pill.dotColor}
+      animate:flip={{ duration: 260, easing: expoOut }}
+      in:scale={{ start: 0.85, duration: 220, easing: expoOut }}
+      out:scale={{ start: 0.85, duration: 160, easing: expoOut }}
     >
       <!-- 1. Colored dot — leads, primary glance affordance -->
       <span class="pill-dot"></span>

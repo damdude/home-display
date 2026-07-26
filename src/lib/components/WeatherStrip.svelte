@@ -1,5 +1,7 @@
 <script lang="ts">
   import { Cloud } from 'lucide-svelte';
+  import { fly } from 'svelte/transition';
+  import { expoOut } from 'svelte/easing';
   import WeatherIcon from './WeatherIcon.svelte';
   import type { WeatherState, WeatherForecastDay } from '$lib/data/placeholder.js';
 
@@ -65,7 +67,7 @@
     <!-- Right: horizontal 5-day forecast -->
     <div class="forecast-row">
       {#each activeForecast.slice(1, 6) as day, i (day.datetime)}
-        <div class="day-col">
+        <div class="day-col" in:fly={{ y: 12, duration: 340, delay: 80 + i * 45, easing: expoOut }}>
           <span class="day-name">{dayLabel(day.datetime, i + 1)}</span>
           <span class="day-icon"><WeatherIcon condition={day.condition} size={42} strokeWidth={1.4} /></span>
           <span class="day-hi num">{day.temperature}°</span>

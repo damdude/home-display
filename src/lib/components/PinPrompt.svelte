@@ -6,6 +6,7 @@
    */
   import { Lock, Delete } from 'lucide-svelte';
   import { fade, scale }  from 'svelte/transition';
+  import { backOut }      from 'svelte/easing';
   import { configStore }  from '$lib/stores/configStore.svelte.js';
 
   interface Props {
@@ -46,7 +47,7 @@
 {#if open}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="pp-backdrop" transition:fade={{ duration: 180 }} onclick={onClose}>
-    <div class="pp" transition:scale={{ duration: 220, start: 0.94 }} onclick={(e) => e.stopPropagation()}>
+    <div class="pp" transition:scale={{ duration: 260, start: 0.9, easing: backOut }} onclick={(e) => e.stopPropagation()}>
       <div class="pp-badge"><Lock size={32} strokeWidth={1.6} /></div>
       <h1>{title}</h1>
       {#if subtitle}<p>{subtitle}</p>{/if}
@@ -116,8 +117,9 @@
     color: var(--color-text-primary); font-size: 34px; font-weight: 400; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     -webkit-tap-highlight-color: transparent;
+    transition: transform 90ms ease, background 120ms ease;
   }
-  .key:active { background: var(--color-surface-3, rgba(127,127,127,0.15)); }
+  .key:active { background: var(--color-surface-3, rgba(127,127,127,0.15)); transform: scale(0.9); }
   .key-empty { visibility: hidden; }
   .key-del { font-size: 0; }
 </style>

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { Calendar } from 'lucide-svelte';
+  import { fly } from 'svelte/transition';
+  import { expoOut } from 'svelte/easing';
   import type { CalendarEvent } from '$lib/data/placeholder.js';
 
   interface Props {
@@ -113,6 +115,7 @@
             class:expandable={hasDetail}
             class:expanded={isExpanded}
             onclick={hasDetail ? () => toggle(idx) : undefined}
+            in:fly={{ y: 10, duration: 320, delay: 60 + idx * 50, easing: expoOut }}
           >
             <!-- Header: when + title, always visible -->
             <div class="event-header">

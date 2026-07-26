@@ -6,8 +6,8 @@
    *
    * Both modes use pure black background. Tap anywhere to dismiss.
    */
-  import { fade }        from 'svelte/transition';
-  import { cubicOut }    from 'svelte/easing';
+  import { fade, fly }   from 'svelte/transition';
+  import { cubicOut, expoOut } from 'svelte/easing';
   import {
     X, Play, Pause, SkipBack, SkipForward, MapPin, Thermometer,
     ShieldCheck, ShieldAlert, Shield, ShieldOff, DoorOpen, DoorClosed, Lightbulb,
@@ -200,7 +200,7 @@
 
       <!-- Location + temperature pill — above the time -->
       {#if locationLabel || temperature}
-        <div class="clock-meta">
+        <div class="clock-meta" in:fly={{ y: 16, duration: 420, delay: 40, easing: expoOut }}>
           {#if locationLabel}
             <span class="meta-item">
               <MapPin size={13} strokeWidth={1.5} />
@@ -220,14 +220,14 @@
       {/if}
 
       <!-- Large time -->
-      <p class="clock-time">{clockTime}</p>
+      <p class="clock-time" in:fly={{ y: 18, duration: 460, delay: 100, easing: expoOut }}>{clockTime}</p>
 
       <!-- Date — Wednesday, June 5 -->
-      <p class="clock-date">{clockDate}</p>
+      <p class="clock-date" in:fly={{ y: 16, duration: 420, delay: 180, easing: expoOut }}>{clockDate}</p>
 
       <!-- Sensor pills — all statuses, black & white -->
       {#if pills.length > 0}
-        <div class="ss-pills">
+        <div class="ss-pills" in:fly={{ y: 14, duration: 420, delay: 260, easing: expoOut }}>
           {#each pills as pill (pill.id)}
             <div class="ss-pill" class:active={pillActive(pill)}>
               <span class="ss-pill-icon">
@@ -256,8 +256,8 @@
 
       <!-- Calendar events — directly below the date -->
       {#if calendarEvents.length > 0}
-        <div class="clock-calendar">
-          {#each calendarEvents.slice(0, 4) as event}
+        <div class="clock-calendar" in:fly={{ y: 14, duration: 420, delay: 340, easing: expoOut }}>
+          {#each calendarEvents.slice(0, 4) as event (event.start + event.summary)}
             <div class="cal-item">
               <span class="cal-dot"></span>
               <div class="cal-content">

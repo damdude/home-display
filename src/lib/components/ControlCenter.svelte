@@ -1,7 +1,14 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition';
-  import { cubicOut }  from 'svelte/easing';
   import { Lightbulb, ShieldCheck, Moon, Siren, Tv2, Lock, Users } from 'lucide-svelte';
+
+  // Gentle back-ease: a small, tasteful overshoot on settle (the panel is opened
+  // by a momentum swipe, so a slight bounce is right — but a full easeOutBack
+  // dips a big sheet too far). c1 tuned low for ~3% overshoot. (apple-design §4)
+  const settle = (x: number) => {
+    const c1 = 0.5, c3 = c1 + 1, p = x - 1;
+    return 1 + c3 * p * p * p + c1 * p * p;
+  };
   import { callHaService, haStore } from '$lib/stores/ha.svelte.js';
   import { lockState }  from '$lib/stores/lockState.svelte.js';
   import { guestState } from '$lib/stores/guestState.svelte.js';
@@ -39,7 +46,7 @@
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="cc-backdrop" transition:fade={{ duration: 200 }} onclick={onClose}>
     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-    <div class="cc-panel" transition:fly={{ y: -800, duration: 360, easing: cubicOut }}
+    <div class="cc-panel" transition:fly={{ y: -800, duration: 360, easing: settle }}
       onclick={(e) => e.stopPropagation()}>
 
       <div class="cc-grabber" onclick={onClose}><span></span></div>

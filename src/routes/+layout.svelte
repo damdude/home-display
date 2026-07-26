@@ -1,7 +1,8 @@
 <script lang="ts">
   import '../app.css';
   import { onMount }  from 'svelte';
-  import { fade }     from 'svelte/transition';
+  import { fade, fly } from 'svelte/transition';
+  import { expoOut }  from 'svelte/easing';
   import { page }     from '$app/stores';
   import type { Snippet } from 'svelte';
   import TopStrip         from '$lib/components/TopStrip.svelte';
@@ -438,7 +439,13 @@
       onscroll={handleShellScroll}
       use:dragScroll={{ onRefresh: handlePullRefresh, refreshThreshold: 90 }}
     >
-      <slot />
+      <!-- Route crossfade: each tab arrives with a subtle fade + rise (transform
+           + opacity only). In-only, so there's never two stacked scroll copies. -->
+      {#key routePath}
+        <div class="tab-view" in:fly={{ y: 10, duration: 300, easing: expoOut }}>
+          <slot />
+        </div>
+      {/key}
     </main>
 
     <BottomNav tabs={navTabs} />
@@ -554,6 +561,10 @@
   .shell-main.is-scrolling {
     scrollbar-color: rgba(255,255,255,0.25) transparent;
   }
+
+  /* Route crossfade wrapper — at least full height so short tabs fill, but grows
+     with taller tabs so their content scrolls normally inside .shell-main. */
+  .tab-view { min-height: 100%; }
 
   /* Edge affordance hints — subtle grabber pills at top & bottom edges */
   .edge-hint {

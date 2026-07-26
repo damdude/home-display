@@ -1,7 +1,12 @@
 <script lang="ts">
   import { fly, fade }  from 'svelte/transition';
-  import { cubicOut }   from 'svelte/easing';
   import { AlertTriangle, XCircle, Cpu, Trash2, Check } from 'lucide-svelte';
+
+  // Gentle back-ease — small overshoot on settle (opened by a momentum swipe up).
+  const settle = (x: number) => {
+    const c1 = 0.5, c3 = c1 + 1, p = x - 1;
+    return 1 + c3 * p * p * p + c1 * p * p;
+  };
   import { notificationStore } from '$lib/stores/notificationStore.svelte.js';
 
   interface Props { open: boolean; onClose: () => void; }
@@ -22,7 +27,7 @@
     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div
       class="nc-panel"
-      transition:fly={{ y: 700, duration: 360, easing: cubicOut }}
+      transition:fly={{ y: 700, duration: 360, easing: settle }}
       onclick={(e) => e.stopPropagation()}
     >
       <div class="nc-grabber" onclick={onClose}><span></span></div>
