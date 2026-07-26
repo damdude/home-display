@@ -1,0 +1,18 @@
+[Unit]
+Description=Home Display first-boot splash (Chromium kiosk on the setup status page)
+After=graphical.target
+Wants=graphical.target
+# Only during first-boot onboarding; once setup is done the real kiosk takes over.
+ConditionPathExists=!/var/lib/home-display/firstboot.done
+
+[Service]
+Type=simple
+User=dash
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+ExecStart=/bin/bash /home/dash/home-display/appliance/splash.sh
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target

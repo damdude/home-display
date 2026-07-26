@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Home Display — Setting up</title>
+  <style>
+    :root {
+      --canvas: #0a0a0c;
+      --surface: #16161a;
+      --surface2: #1f1f25;
+      --border: rgba(255,255,255,0.08);
+      --text: rgba(255,255,255,0.92);
+      --text2: rgba(255,255,255,0.5);
+      --text3: rgba(255,255,255,0.32);
+      --sage: #6b9b7d;
+      --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { height: 100%; }
+    body {
+      background: radial-gradient(120% 90% at 50% 0%, #14141a 0%, var(--canvas) 60%);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      display: flex; flex-direction: column;
+      height: 100vh; overflow: hidden;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      flex: 1;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 26px; text-align: center; padding: 24px;
+    }
+    .badge {
+      width: 96px; height: 96px; border-radius: 26px;
+      background: linear-gradient(160deg, var(--surface2), var(--surface));
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .badge svg { width: 52px; height: 52px; color: var(--sage); }
+    .title { font-size: clamp(30px, 5vw, 46px); font-weight: 700; letter-spacing: -0.02em; }
+    .phase { font-size: clamp(17px, 2.4vw, 24px); color: var(--text2); font-weight: 500; min-height: 1.4em; }
+
+    .dots { display: flex; gap: 9px; margin-top: 4px; }
+    .dots i {
+      width: 10px; height: 10px; border-radius: 50%; background: var(--sage);
+      opacity: 0.35; animation: pulse 1.2s ease-in-out infinite;
+    }
+    .dots i:nth-child(2) { animation-delay: 0.2s; }
+    .dots i:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse { 0%,100% { opacity: 0.25; transform: scale(0.85); } 50% { opacity: 1; transform: scale(1); } }
+
+    /* ── Progress bar ── */
+    .bar { width: min(460px, 74vw); height: 6px; border-radius: 999px; background: var(--surface2); overflow: hidden; }
+    .bar > span { display: block; height: 100%; width: 0%; border-radius: 999px;
+      background: linear-gradient(90deg, var(--sage), #8fc0a2);
+      transition: width 500ms cubic-bezier(0.32,0.72,0,1); }
+    .bar.indeterminate > span {
+      width: 34%; animation: slide 1.4s ease-in-out infinite;
+    }
+    @keyframes slide { 0% { margin-left: -34%; } 100% { margin-left: 100%; } }
+
+    /* ── Bottom status window ── */
+    .console {
+      margin: 0 auto 18px; width: min(680px, 92vw);
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 12px 14px 14px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      backdrop-filter: blur(6px);
+    }
+    .console-head {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text3); font-weight: 600; margin-bottom: 8px;
+    }
+    .live { width: 8px; height: 8px; border-radius: 50%; background: var(--sage); animation: blink 1.4s infinite; }
+    @keyframes blink { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+    .log { font-family: var(--mono); font-size: 13px; line-height: 1.5; color: var(--text2);
+      height: 6.2em; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
+    .log div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .log div:last-child { color: var(--text); }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h14V9.5" /><path d="M9.5 21v-6h5v6" />
+      </svg>
+    </div>
+    <div class="title">Home Display</div>
+    <div class="phase" id="phase">Starting up…</div>
+    <div class="bar indeterminate" id="bar"><span id="barfill"></span></div>
+    <div class="dots"><i></i><i></i><i></i></div>
+  </div>
+
+  <div class="console">
+    <div class="console-head"><span class="live"></span> Setup activity</div>
+    <div class="log" id="log"><div>Booting…</div></div>
+  </div>
+
+  <script>
+    const phaseEl = document.getElementById('phase');
+    const logEl   = document.getElementById('log');
+    const bar     = document.getElementById('bar');
+    const barfill = document.getElementById('barfill');
+    let lastLog = '';
+
+    async function tick() {
+      try {
+        const r = await fetch('status.json', { cache: 'no-store' });
+        if (r.ok) {
+          const s = await r.json();
+          if (s.phase) phaseEl.textContent = s.phase;
+          if (Array.isArray(s.log)) {
+            const joined = s.log.join('\n');
+            if (joined !== lastLog) {
+              lastLog = joined;
+              logEl.innerHTML = '';
+              s.log.slice(-4).forEach(line => {
+                const d = document.createElement('div'); d.textContent = line; logEl.appendChild(d);
+              });
+            }
+          }
+          if (typeof s.pct === 'number' && s.pct >= 0) {
+            bar.classList.remove('indeterminate');
+            barfill.style.width = Math.max(0, Math.min(100, s.pct)) + '%';
+          } else {
+            bar.classList.add('indeterminate');
+          }
+        }
+      } catch (_) { /* status file not ready yet */ }
+    }
+    tick();
+    setInterval(tick, 900);
+  </script>
+</body>
+</html>

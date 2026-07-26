@@ -25,6 +25,11 @@ Power on
   └─ Reboot ─▶ kiosk opens ─▶ HA setup QR code
 ```
 
+Throughout these background phases the screen shows a **full-screen setup splash**
+(`appliance/splash/`) with a live status window at the bottom — current phase, a
+progress bar, and a short activity log — so it never looks frozen. When
+onboarding finishes it reboots straight into the dashboard's HA QR screen.
+
 WiFi onboarding uses [comitup](https://davesteele.github.io/comitup/): it only
 raises its own access point when there is **no** working connection, so a
 WiFi network preset in Raspberry Pi Imager is honored and the hotspot never
@@ -89,8 +94,10 @@ Other overrides: `TARGET_USER`, `APP_DIR`, `RUN_MODE` (`production`|`debug`),
 | `install.sh` | One-line installer: clone repo → `provision.sh`. |
 | `provision.sh` | Idempotent OS + app setup: Node, kiosk, services, autologin, rotation, WiFi portal. |
 | `wifi-portal.sh` | Installs + configures comitup (captive-portal WiFi). |
-| `firstboot.sh` | First-boot: wait for WiFi → OS upgrade → build → reboot into kiosk. |
-| `systemd/home-display-firstboot.service` | Runs `firstboot.sh` once, before the kiosk. |
+| `firstboot.sh` | First-boot: serve splash status → wait for WiFi → OS upgrade → build → reboot into kiosk. |
+| `splash/index.html` | Full-screen setup splash with a live status window (polls `status.json`). |
+| `splash.sh` + `systemd/home-display-splash.service` | Chromium kiosk showing the splash during first boot. |
+| `systemd/home-display-firstboot.service` | Runs `firstboot.sh` once, after the splash is up. |
 | `pi-gen-stage/` | pi-gen custom stage that bakes the appliance into an image. |
 | `../.github/workflows/build-image.yml` | CI: build the image, attach to the Release. |
 

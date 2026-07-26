@@ -1,20 +1,18 @@
 [Unit]
-Description=Home Display first-boot setup (WiFi onboarding + OS upgrade)
-After=network.target NetworkManager.service comitup.service
-Wants=network.target
-# Run before the kiosk so the user never sees a half-set-up dashboard; this unit
-# reboots on completion, so the kiosk first starts on the SECOND boot.
-Before=home-display-kiosk.service
+Description=Home Display first-boot setup (WiFi onboarding + OS upgrade + build)
+# Run AFTER the graphical session so labwc + the splash are already on screen,
+# and drive the work in the background while the splash reports progress.
+After=graphical.target NetworkManager.service comitup.service
+Wants=graphical.target
 ConditionPathExists=!/var/lib/home-display/firstboot.done
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-# WiFi entry can take a while — never time out the wait.
+Type=simple
+# WiFi entry + OS upgrade + build can take a long time — never time out.
 TimeoutStartSec=infinity
 ExecStart=/bin/bash /home/dash/home-display/appliance/firstboot.sh
 StandardOutput=journal+console
 StandardError=journal+console
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target

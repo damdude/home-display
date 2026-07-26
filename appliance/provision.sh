@@ -46,6 +46,7 @@ APP_DIR="${APP_DIR:-${USER_HOME}/home-display}"
 DISPLAY_OUTPUT="${DISPLAY_OUTPUT:-HDMI-A-1}"
 DISPLAY_TRANSFORM="${DISPLAY_TRANSFORM:-270}"
 RUN_MODE="${RUN_MODE:-production}"
+SKIP_BUILD="${SKIP_BUILD:-0}"   # 1 = set everything up but defer npm build to firstboot (image build)
 
 log()  { echo ""; echo "==> $*"; }
 ok()   { echo "    ✓  $*"; }
@@ -59,7 +60,7 @@ apt-get update -y
 # Kiosk stack: labwc (Wayland compositor), seatd, Chromium, wlr-randr for rotation.
 # NetworkManager + comitup for WiFi onboarding. curl/git/ca-certificates for tooling.
 apt-get install -y --no-install-recommends \
-  ca-certificates curl git jq \
+  ca-certificates curl git jq python3 \
   labwc seatd wlr-randr \
   chromium-browser chromium || apt-get install -y chromium || true
 apt-get install -y network-manager || true
@@ -80,8 +81,12 @@ if [ ! -d "${APP_DIR}" ]; then
 fi
 chown -R "${TARGET_USER}:${TARGET_USER}" "${APP_DIR}"
 
-log "Installing npm dependencies + building…"
-sudo -u "${TARGET_USER}" bash -lc "cd '${APP_DIR}' && npm ci && npm run build"
+if [ "${SKIP_BUILD}" = "1" ]; then
+  log "SKIP_BUILD=1 — deferring npm build to first boot"
+else
+  log "Installing npm dependencies + building…"
+  sudo -u "${TARGET_USER}" bash -lc "cd '${APP_DIR}' && npm ci && npm run build"
+fi
 echo "${RUN_MODE}" > "${APP_DIR}/mode"
 chown "${TARGET_USER}:${TARGET_USER}" "${APP_DIR}/mode"
 # Ensure a .env exists (empty creds — HA is configured later via the QR wizard).
@@ -124,6 +129,8 @@ Description=Home Display Chromium Kiosk
 After=graphical.target home-display.service
 Wants=graphical.target
 BindsTo=home-display.service
+# Only after first-boot onboarding is finished (the splash owns the screen until then).
+ConditionPathExists=/var/lib/home-display/firstboot.done
 
 [Service]
 Type=simple
@@ -207,11 +214,33 @@ if bash "$(dirname "$0")/wifi-portal.sh"; then
   ok "WiFi portal (comitup) configured"
 fi
 
-# ── 8. Enable everything ──────────────────────────────────────────────────────
+# ── 8. First-boot splash + onboarding services ────────────────────────────────
+log "Installing first-boot splash + onboarding services…"
+sed "s#/home/dash/home-display#${APP_DIR}#g" \
+  "${APP_DIR}/appliance/systemd/home-display-firstboot.service" \
+  > /etc/systemd/system/home-display-firstboot.service
+sed "s#/home/dash/home-display#${APP_DIR}#g; s#User=dash#User=${TARGET_USER}#; s#/run/user/1000#/run/user/${USER_UID}#" \
+  "${APP_DIR}/appliance/systemd/home-display-splash.service" \
+  > /etc/systemd/system/home-display-splash.service
+ok "Splash + firstboot units installed"
+
+# ── 9. Enable everything ──────────────────────────────────────────────────────
 log "Enabling services…"
-systemctl daemon-reload
-systemctl enable home-display.service home-display-kiosk.service >/dev/null
+systemctl daemon-reload || true
+systemctl enable home-display.service home-display-kiosk.service >/dev/null 2>&1 || true
+systemctl enable home-display-firstboot.service home-display-splash.service >/dev/null 2>&1 || true
 ok "Services enabled (start on boot)"
+
+# ── 10. First-boot flag ───────────────────────────────────────────────────────
+# When we built here (installer path), onboarding is already done — mark it so
+# the kiosk starts directly and the splash/firstboot never run. When SKIP_BUILD
+# (image build), leave it UNSET so first boot runs onboarding + the splash.
+mkdir -p /var/lib/home-display
+if [ "${SKIP_BUILD}" = "1" ]; then
+  rm -f /var/lib/home-display/firstboot.done
+else
+  touch /var/lib/home-display/firstboot.done
+fi
 
 log "Provisioning complete."
 echo "    User:     ${TARGET_USER} (uid ${USER_UID})"
