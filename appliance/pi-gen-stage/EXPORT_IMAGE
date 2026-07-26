@@ -1,0 +1,2 @@
+# Marks this stage as producing an exported (flashable) image.
+IMG_SUFFIX="-home-display"

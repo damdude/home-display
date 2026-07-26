@@ -1,0 +1,10 @@
+git
+curl
+ca-certificates
+jq
+labwc
+seatd
+wlr-randr
+chromium-browser
+network-manager
+dbus-user-session
