@@ -1,0 +1,64 @@
+name: Build Raspberry Pi image
+
+# Builds a flashable Raspberry Pi OS image with the Home Display appliance baked
+# in, and attaches the compressed .img.xz to the GitHub Release. Also runnable
+# on demand from the Actions tab.
+#
+# Distribution: GitHub Releases hosts the image directly (assets up to 2 GB; a
+# Lite-based appliance image compresses to well under that).
+#
+# NOTE: pi-gen builds via qemu on the runner and takes ~30–45 min. The exact
+# pi-gen-action input names can shift between versions — pin/adjust against
+# https://github.com/usimd/pi-gen-action if a build fails on an unknown input.
+
+on:
+  workflow_dispatch: {}
+  release:
+    types: [published]
+
+permissions:
+  contents: write   # needed to upload the image asset to the release
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image with pi-gen
+        id: build
+        uses: usimd/pi-gen-action@v1
+        with:
+          image-name: home-display
+          # Lite base (stage0–2) + our appliance stage (adds the Wayland kiosk).
+          stage-list: stage0 stage1 stage2 ./appliance/pi-gen-stage
+          release: bookworm
+          # 64-bit userland for the Pi 4.
+          pi-gen-version: arm64
+          compression: xz
+          compression-level: 6
+          # Appliance defaults — no interactive first-run rename, SSH on for support.
+          enable-ssh: 1
+          disable-first-boot-user-rename: 1
+          username: dash
+          password: homedisplay
+          # Pass the repo/branch through to the chroot stage.
+          extra-host-modules: ""
+        env:
+          DASHBOARD_REPO: https://github.com/${{ github.repository }}.git
+          DASHBOARD_BRANCH: ${{ github.ref_name }}
+
+      - name: Attach image to the release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.build.outputs.image-path }}
+
+      - name: Upload image as a workflow artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: home-display-image
+          path: ${{ steps.build.outputs.image-path }}
+          retention-days: 14
