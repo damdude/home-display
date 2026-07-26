@@ -3,18 +3,21 @@
    * Shown on the kiosk when no HA credentials are configured.
    * Displays a QR code + URL so the user can open /setup on their phone.
    *
-   * Polls /api/config every 2 s. When the token appears (written by the
-   * /api/setup/test-ha endpoint on the phone), the server restarts; the
-   * poll detects the server coming back with a token set and reloads the page,
-   * triggering the wizard.
+   * Polls /api/config every 2 s. `/api/setup/test-ha` (submitted from the phone)
+   * HOT-RELOADS the live HA connection and writes the token to config.json —
+   * it does NOT restart the service (see CLAUDE.md). So we simply wait for the
+   * token to appear and then reload into the wizard. A transient fetch failure
+   * here (a dev-server recompile / timeout) is just a blip and must NOT change
+   * the UI — the old code treated any blip as "restarting → connected", which
+   * flipped the screen to "Connected!" with nobody having set anything up.
    */
   import { onMount } from 'svelte';
 
-  let localIp    = $state('…');
-  let setupUrl   = $state('');
-  let qrSrc      = $state('');
-  let phase      = $state<'waiting' | 'restarting' | 'back'>('waiting');
-  let qrFailed   = $state(false);
+  let localIp   = $state('…');
+  let setupUrl  = $state('');
+  let qrSrc     = $state('');
+  let connected = $state(false);   // real token detected → brief confirmation before reload
+  let qrFailed  = $state(false);
 
   onMount(() => {
     // Discover IP
@@ -30,27 +33,19 @@
         setupUrl = 'http://<PI_IP>:5173/setup';
       });
 
-    // Poll until HA token appears
-    let wasUp = true;
+    // Poll ONLY for the token appearing. Ignore transient failures entirely.
     const poll = setInterval(async () => {
       try {
-        const res = await fetch('/api/config', { signal: AbortSignal.timeout(3_000) });
+        const res = await fetch('/api/config', { cache: 'no-store', signal: AbortSignal.timeout(3_000) });
         if (!res.ok) return;
-        wasUp = true;
-        if (phase === 'restarting') phase = 'back';
-
         const cfg = await res.json() as { ha?: { token?: string | null } };
-        if (cfg?.ha?.token && cfg.ha.token !== '***') {
+        if (cfg?.ha?.token) {   // truthy (real or sanitised '***') → credentials set
           clearInterval(poll);
-          // Token set — server will restart; wait a moment then reload
-          setTimeout(() => window.location.reload(), 1_500);
-        } else if (cfg?.ha?.token === '***') {
-          // Token is set (sanitised) — reload now
-          clearInterval(poll);
-          window.location.reload();
+          connected = true;
+          setTimeout(() => window.location.reload(), 1_200);
         }
       } catch {
-        if (wasUp) { phase = 'restarting'; wasUp = false; }
+        /* transient dev-server blip / timeout — keep showing the QR, do nothing */
       }
     }, 2_000);
 
@@ -59,15 +54,7 @@
 </script>
 
 <div class="screen">
-  {#if phase === 'restarting'}
-
-    <div class="status-card">
-      <div class="spinner"></div>
-      <p class="status-title">Dashboard is restarting…</p>
-      <p class="status-sub">This usually takes 5–10 seconds.</p>
-    </div>
-
-  {:else if phase === 'back'}
+  {#if connected}
 
     <div class="status-card">
       <div class="checkmark">✓</div>
