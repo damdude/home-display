@@ -1,50 +1,76 @@
-# Project Status — Last Updated: 2026-06-14
+# Project Status — Last Updated: 2026-07-25
 
-## Setup Flow (Phase 0 + 1) — Status
+## Production Display (CURRENT — the old monitor is retired)
+- Waveshare 10.1" DSI, portrait: 800px wide × 1280px tall. This is THE target.
+- The external 1440×2560 monitor is RETIRED. All sizing targets 800px width.
+- Rotation: wlr-randr transform 270 on HDMI-A-1 under labwc/Wayland.
 
-### COMPLETE ✅
-- QR screen on boot when no config.json
-- /setup phone form (URL + token entry, black/white, big buttons)
-- HA token validation + systemd restart trigger
-- Setup page persists through Pi restart (sessionStorage + pageshow handler + polling)
-- Setup page: network error during token submit treated as success (restart-safe)
-- Kiosk transitions QR → Wizard after restart
-- Setup wizard shell (SetupWizard.svelte) with progress bar + loading spinner
-- Settings gear icon in TopStrip (Bell → Theme → Gear order)
-- SettingsOverlay: Refresh, Reboot, Factory Reset (double-tap confirm)
-- Reboot/Reset API endpoints (/api/settings/reboot, /api/settings/reset)
-- scripts/setup-sudoers.sh for passwordless reboot
-- configTempStore.ts (in-memory wizard state)
-- /api/setup/complete endpoint (writes config.json only on wizard completion)
-- Sticky header (TopStrip + StatusPillRow pinned, content scrolls under)
-- Touch-drag scroll on main content area (-webkit-overflow-scrolling: touch)
-- Home tab grid proportions tuned for 800×1280 portrait (14fr 13fr 18fr 10fr 18fr)
-- Setup wizard steps: all use step-header/step-body/step-footer layout, black/white only
-- Wizard flicker fix: step-inner absolute inside stable step-wrap (no layout shift during slide)
-- All step buttons: 22px font, 72px min-height, 700px max-width, fixed px (not vw-based)
+## ⚠️ Hardware + Architecture Lessons (a fresh session MUST know these)
+These were learned the hard way; ignoring them reintroduces already-fixed bugs.
 
-### IN PROGRESS / KNOWN ISSUES ⚠️
-- Dynamic dashboard from config (BottomNav from config.tabs, Home tab from config.widgets) — not wired yet
+1. **POINTER EVENTS ONLY** — touch events do NOT fire reliably on the Waveshare DSI panel. Chromium falls back to text-selection instead of firing touchstart/touchmove. ALL gesture code uses pointerdown/pointermove/pointerup. See `src/lib/actions/dragScroll.ts` (the canonical example).
+2. **Scrolling requires `min-height: 0`** on the flex child that scrolls. Without it a flex child grows to content height and never scrolls. `.shell-main` has it.
+3. **Fine-grained reactivity: mutate, don't spread.** In `ha.svelte.ts` the SSE `patch` case does `haStore.entities[id] = state` (direct mutation). Do NOT `haStore.entities = { ...haStore.entities, [id]: state }` — spreading changes the reference and invalidates EVERY `$derived` in the app (major jank on Pi 4).
+4. **dragScroll owns scroll AND overscroll.** It ignores pointers that START in the top/bottom edge bands (`EDGE_BAND_TOP=90`, `EDGE_BAND_BOTTOM=150`, exported from dragScroll.ts) so the window-level Control/Notification swipes get those gestures. Do not add competing pointer handlers on `.shell-main`.
+5. **All HA proxies use `getActiveCredentials()`** from connection.ts — never raw `env.HA_TOKEN`. After first-time setup the token lives in the runtime override, not necessarily in `env`. Reading `env.HA_TOKEN` directly causes HA "invalid authentication" warnings (this bit zones.ts, camera, artwork, music/browse).
+6. **Token hot-reload, no restart.** `/api/setup/test-ha` calls `reconnectWithCredentials(url, token)` on the live WebSocket. It does NOT restart the service (restarting shows the desktop on the kiosk and drops the setup page).
+7. **config.json is written ONLY on full wizard completion** via /api/setup/complete.
+8. **Mac edits → `bash scripts/deploy.sh --update` → Pi runs.** Never run npm on Mac.
+9. **Chromium kiosk MUST pass `--ozone-platform=wayland`** or it silently fails.
+10. **Setup wizard is hardcoded black/white** (#000/#fff/#111), not CSS variables, so the dashboard theme can't leak into it.
 
-### NOT STARTED ❌
-- Phase 6: General screensaver (B&W clock when idle, no music)
-- Phase 7: Admin login + per-instance permissions
-- Phase 8: Polish (animations, error states, offline handling)
-- Phase 9: Production hardening (Waveshare DSI touch calibration)
+## COMPLETE ✅ (confirmed working on device this session)
+
+### Setup & onboarding
+- QR boot screen → phone /setup (URL + token) → hot-reload → kiosk transitions to wizard
+- Setup page survives the connection step (sessionStorage + pageshow guard)
+- Full wizard: room → tabs → home widgets → home entities → security → zones → child-lock → done; writes config.json on completion
+- Wizard hard-gate: Continue disabled until a step is valid; explicit Skip only where a step is optional; transition-lock prevents rapid-tap step-skipping
+- Entity-picker step shows a loading state, then a snapshotted (frozen) list — no freeze, no churn while choosing
+- Zones step auth fixed (uses getActiveCredentials); 6s fallback so it never hangs
+
+### Gestures & panels
+- Swipe DOWN from top → Control Center (quick actions + child-lock)
+- Swipe UP from bottom → Notification Center (new-device/HA-warning notifications + activity log; baseline persisted so restarts don't re-flag every entity)
+- Edge affordance bars (subtle gray pills top+bottom hinting the panels)
+- Rubber-band overscroll on ALL tabs + pull-to-refresh (pull down at top → HA refresh)
+- Child lock: 4–6 digit PIN set in wizard; full-screen PIN-pad overlay swallows all touch when engaged; gestures blocked while locked (UX gate, not hardened security — PIN is plain text in config.json)
+
+### Home tab
+- Per-tab status bar: Home shows only ACTIVE sensors (open/on/armed), live-updating; Security shows ALL; Music shows none
+- Weather: horizontal 5-day forecast (day/icon/high/low)
+- Climate: two tiles, enlarged touch targets
+- Calendar: shows ~2 upcoming; collapses to a thin bar when empty
+- Now Playing: compact card, artwork with transport controls OVERLAID on it, speaker name shown, no purple; collapses to thin bar when idle
+- Quick Actions REMOVED from Home (moved to Control Center)
+
+### Global
+- Theme toggle works (removed the duplicate :root in +layout that overrode app.css); persists across reload
+- Bell icon removed from TopStrip (notifications now via swipe-up)
+- Bigger BottomNav (104px, larger icons/labels); honors config.tabs
+- Screensaver: music mode only while playing OR paused < 2 min, else clock mode; full-bleed artwork; notification count badge; idle timeout 15s
+- Performance pass: fine-grained entity reactivity, memoized musicState ($derived), debounced new-device check (60s), conditional pause-ticker, keyed {#each} blocks
+
+## PENDING / NOT STARTED
+- Dynamic dashboard rendering from config (Home widgets/entities, tab content still partly hardcoded) — biggest structural gap
 - Widget reordering (long-press drag-and-drop)
+- Guest/admin config mode (guestConfigOpen stub exists, not built)
+- General screensaver polish (clock mode exists, no design pass)
+- Phase 7: real admin login (server-side auth — distinct from child-lock UX gate)
+- Phase 8/9: error/offline states, Waveshare touch calibration
+- Music integrations: YouTube Music via Music Assistant free-tier community provider is the viable free path (researched); Spotify/Amazon parked behind API walls
+- Verify the HA invalid-auth fix fully cleared (user to confirm from HA logs)
+- Full apple-design pass (motion + visual + layout) — planned as 6 committed batches
 
-## Production Display
-- Waveshare 10.1" DSI at 1280×800, running portrait (800px wide × 1280px tall)
-- Previous: external 1440×2560 portrait monitor (retired)
-- Touch: works via DSI touchscreen, no mouse needed
-- All UI sizing now targets 800px wide viewport
+## Design skill installed
+- `~/.claude/skills/apple-design/` (global) — Apple WWDC fluid-interface principles. Consult it for gesture/animation/material/typography work. Pointer-event + rAF based.
 
-## Critical Rules
-- config.json ONLY written after full wizard completion (via /api/setup/complete)
+## Critical Rules (unchanged, still apply)
+- config.json ONLY written after full wizard completion
 - HA token NEVER in client code — proxied via /api/* server routes
-- Setup wizard uses hardcoded black/white (#000/#fff/#111) — not CSS variables
+- Setup wizard hardcoded black/white, not CSS variables
 - Deploy ALWAYS via `bash scripts/deploy.sh --update` from Mac — never npm on Mac
-- TRIGGERED_DEMO must be false in production
+- Commit to git after each confirmed batch of changes (baseline discipline — several past regressions came from large uncommitted change stacks)
 
 ---
 
@@ -55,9 +81,9 @@ A custom SvelteKit 5 (Svelte 5 runes) dashboard for a wall-mounted Raspberry Pi 
 
 ## Hardware
 - Raspberry Pi 4 Model B, 4GB RAM, aarch64, Debian 13 (Trixie)
-- External monitor at 1440×2560 portrait (wlr-randr transform 270 under labwc/Wayland)
+- Production display (CURRENT): Waveshare 10.1" DSI at 1280×800, run portrait (800px wide × 1280px tall), touchscreen (wlr-randr transform 270 on HDMI-A-1 under labwc/Wayland)
+- The external 1440×2560 portrait monitor is RETIRED
 - Pi is headless — accessed only via SSH from Mac (user: dash @ 192.168.7.21)
-- Target production display (deferred): Waveshare 10.1" DSI at 1280×800, portrait, touchscreen
 
 ## Network
 - eero Pro 6 router, all devices on 192.168.7.0/24
@@ -89,7 +115,7 @@ A custom SvelteKit 5 (Svelte 5 runes) dashboard for a wall-mounted Raspberry Pi 
 - Accents: sage `#6B9B7D` (safe/on), wheat `#A89876` (alert), deep red `#C66B6B` (triggered)
 - Music accent: `var(--color-accent-music)` (purple ~`#9B7BB5`)
 - Apple easing: `cubic-bezier(0.32, 0.72, 0, 1)` for all transitions
-- Type scale: clock 96px, hero 36–44px, body 22–26px (wall display viewing distance)
+- Type scale: clock 96px, hero 36–44px, body 22–26px (token values unchanged; sizing now targets the 800px-wide Waveshare portrait panel, not the retired monitor)
 
 ## Architecture — data flow
 ```
@@ -166,7 +192,7 @@ HIDDEN_AREA_IDS = ['garage'] in zonesStore.
 - Phase 5: Music tab — Apple Music-style full player, CarPlay mini player on Home tab, shared CastPicker, Music Screensaver
 
 ## Phases remaining
-- Phase 6: General screensaver (B&W time/weather when idle, no music)
+- Phase 6: General screensaver — PARTIAL (music screensaver complete; B&W clock idle mode exists but not yet polished)
 - Phase 7: Admin login + per-instance device permissions
 - Phase 8: Polish (animations, error states, offline handling)
 - Phase 9: Production hardening (Waveshare DSI display, touch calibration, auto-recovery)
