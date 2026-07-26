@@ -51,7 +51,25 @@ const _defaults: DashboardConfig = {
   zones:    { hiddenAreaIds: [] },
 };
 
+/** Default Home widgets (canonical order) — matches the pre-refactor layout.
+ *  Used to migrate configs written before dynamic Home rendering existed. */
+export const DEFAULT_HOME_WIDGETS = ['weather', 'calendar', 'climate', 'now_playing'];
+
 let _data = $state<DashboardConfig>(structuredClone(_defaults));
+let _migrationLogged = false;
+
+/** Backfill home.widgets for pre-refactor configs so the dynamic Home isn't empty. */
+function migrate(cfg: DashboardConfig): DashboardConfig {
+  if (!cfg.home) cfg.home = structuredClone(_defaults.home);
+  if (!Array.isArray(cfg.home.widgets) || cfg.home.widgets.length === 0) {
+    cfg.home.widgets = [...DEFAULT_HOME_WIDGETS];
+    if (!_migrationLogged) {
+      console.log('[ConfigStore] No home widgets in config — applied defaults');
+      _migrationLogged = true;
+    }
+  }
+  return cfg;
+}
 
 export const configStore = {
   get data():    DashboardConfig { return _data; },
@@ -75,7 +93,7 @@ export const configStore = {
 
   /** Replace the full config (called after /api/config fetch). */
   set(cfg: DashboardConfig): void {
-    _data = cfg;
+    _data = migrate(cfg);
   },
 
   /** Merge a partial patch into the store (optimistic update after PATCH). */
