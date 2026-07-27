@@ -1,30 +1,19 @@
 name: Build Raspberry Pi image
 
-# Builds flashable Raspberry Pi OS images with the Home Display appliance baked
-# in, for multiple hardware families, and attaches the compressed .img.xz files
-# to the GitHub Release. Also runnable on demand from the Actions tab.
+# Builds a flashable 64-bit (arm64) Raspberry Pi OS image with the Home Display
+# appliance baked in, and attaches the compressed .img.xz to the GitHub Release.
+# Also runnable on demand from the Actions tab.
 #
-# ── Which image for which Pi ────────────────────────────────────────────────
-#   arm64 (64-bit) → Pi 5, Pi 4 / 400, CM4  (recommended, best experience)
-#                     also boots Pi 3 / Zero 2 W (works, but below the Pi 4 bar)
-#   armhf (32-bit) → Pi 2 / Pi 3 / Zero / Zero 2 W and older
-#                     ⚠ well below the Pi 4 target — expect a sluggish UI.
-# The dashboard is developed + tested on a Pi 4. Anything slower will feel
-# laggier (Chromium + Wayland kiosk is the heavy part). See appliance/README.md.
+# 64-bit covers Pi 5 / 4 / 400 / CM4 (recommended) and also boots Pi 3 / Zero 2 W
+# (below the Pi 4 bar — see appliance/README.md). A separate 32-bit (armhf) image
+# for pre-64-bit boards is intentionally NOT built: a Chromium/Wayland kiosk isn't
+# viable on those, and the dashboard targets Pi 4.
 #
-# NOTE: CI uses the built-in GITHUB_TOKEN — no personal token is needed here.
-# pi-gen builds via qemu (~30–45 min each). The exact pi-gen-action input names
-# can shift between versions; if a build fails on an unknown input, check
-# https://github.com/usimd/pi-gen-action and adjust (esp. the `arch` input).
+# CI uses the built-in GITHUB_TOKEN — no personal token needed. pi-gen builds via
+# qemu (~30–45 min). verbose-output is on so failures show the real pi-gen error.
 
 on:
-  workflow_dispatch:
-    inputs:
-      arch:
-        description: "Architecture(s) to build"
-        type: choice
-        default: all
-        options: [all, arm64, armhf]
+  workflow_dispatch: {}
   release:
     types: [published]
 
@@ -34,36 +23,20 @@ permissions:
 jobs:
   build-image:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [arm64, armhf]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Decide whether to build this arch
-        id: gate
-        run: |
-          sel="${{ github.event.inputs.arch || 'all' }}"
-          if [ "$sel" != "all" ] && [ "$sel" != "${{ matrix.arch }}" ]; then
-            echo "skip=true"  >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build image (${{ matrix.arch }})
-        if: steps.gate.outputs.skip == 'false'
+      - name: Build image (arm64 / 64-bit)
         id: build
         uses: usimd/pi-gen-action@v1
         with:
-          image-name: home-display-${{ matrix.arch }}
+          image-name: home-display-arm64
           # Lite base (stage0–2) + our appliance stage (adds the Wayland kiosk).
           stage-list: stage0 stage1 stage2 ./appliance/pi-gen-stage
           release: bookworm
-          # 64-bit vs 32-bit userland. If this input name is wrong for the action
-          # version, some versions instead take `pi-gen-version: arm64`.
-          arch: ${{ matrix.arch }}
+          # pi-gen-version defaults to "arm64" (64-bit) in this action — leave it.
+          verbose-output: true
           compression: xz
           compression-level: 6
           enable-ssh: 1
@@ -75,15 +48,15 @@ jobs:
           DASHBOARD_BRANCH: ${{ github.ref_name }}
 
       - name: Attach image to the release
-        if: steps.gate.outputs.skip == 'false' && github.event_name == 'release'
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.build.outputs.image-path }}
 
       - name: Upload image as a workflow artifact
-        if: steps.gate.outputs.skip == 'false' && github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: home-display-${{ matrix.arch }}
+          name: home-display-arm64
           path: ${{ steps.build.outputs.image-path }}
           retention-days: 14
