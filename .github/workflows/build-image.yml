@@ -27,6 +27,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # pi-gen builds the arm64 rootfs by running ARM binaries in a chroot on the
+      # x86 runner — that needs qemu-aarch64 registered in binfmt_misc, or it dies
+      # with "arm64: not supported on this machine/kernel". This registers it.
+      - name: Set up QEMU (arm64 emulation)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Build image (arm64 / 64-bit)
         id: build
         uses: usimd/pi-gen-action@v1
