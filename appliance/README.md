@@ -28,12 +28,12 @@ restarts. If already current, it says so. No periodic/background checking.
 ## First-boot flow (what the appliance does on its own)
 
 ```
-Power on
-  └─ WiFi?  ── no ─▶ Pi opens its own hotspot "HomeDashboard-xxxx"
-  │                   → join it from your phone → pick your home WiFi + password
-  │  (yes: WiFi preset in Raspberry Pi Imager → skips the hotspot)
-  ├─ Online ─▶ update Raspberry Pi OS (apt full-upgrade)
-  ├─ Build + enable the dashboard services
+Power on  (dashboard is already built into the image — works offline)
+  └─ ~4-min WiFi window: Pi opens hotspot "HomeDashboard-xxxx"
+  │      → join from your phone → pick your home WiFi   (or just wait)
+  ├─ Online?
+  │     yes ─▶ update Raspberry Pi OS + Node (apt) + pull & rebuild the dashboard
+  │     no  ─▶ skip updates, no error — continue with the built-in version
   └─ Reboot ─▶ kiosk opens ─▶ HA setup QR code
 ```
 
@@ -121,7 +121,7 @@ Other overrides: `TARGET_USER`, `APP_DIR`, `RUN_MODE` (`production`|`debug`),
 | `provision.sh` | Idempotent OS + app setup: Node, kiosk, services, autologin, rotation, WiFi portal. |
 | `wifi-portal.sh` | Installs + configures comitup (captive-portal WiFi). |
 | `update.sh` + `systemd/home-display-update.service` | Self-update (Settings → Update): pull latest → `npm ci` → build → restart. Separate unit so restarting the app doesn't kill the updater. |
-| `firstboot.sh` | Legacy first-boot flow (WiFi wait → OS upgrade → build). Dormant now that the image ships fully built (see below). |
+| `firstboot.sh` | First boot (best-effort): offer a ~4-min WiFi window → if online, update OS + Node + dashboard → reboot into the app. If WiFi isn't set, continues offline (no error). |
 | `splash/index.html` | Full-screen setup splash with a live status window (polls `status.json`). |
 | `splash.sh` + `systemd/home-display-splash.service` | Chromium kiosk showing the splash during first boot. |
 | `systemd/home-display-firstboot.service` | Runs `firstboot.sh` once, after the splash is up. |

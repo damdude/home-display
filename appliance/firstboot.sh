@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 # firstboot.sh — runs ONCE on the first boot (as root, via
-# home-display-firstboot.service), AFTER labwc + the splash are up. Drives the
-# whole onboarding while the splash shows live status:
-#   WiFi wait → OS upgrade → build/provision → reboot into the dashboard.
+# home-display-firstboot.service), AFTER labwc + the splash are up.
+#
+# The app is already built into the image, so this is BEST-EFFORT: it offers a
+# short window to set up WiFi, and if the Pi comes online it pulls all updates
+# (OS + Node + dashboard). If WiFi is never configured it does NOT error — it
+# just continues into the (fully working, offline) dashboard.
 #
 # It serves the splash's status.json (a tiny python http server) and updates it
 # at each phase. Guarded by a done-flag so it never runs again.
@@ -51,40 +54,42 @@ status() {
 cleanup() { [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null || true; }
 trap cleanup EXIT
 
-status -1 "Starting up…" "Home Display first-time setup"
+status 5 "Starting up…" "Home Display first-time setup"
 
-# ── 1. Wait for connectivity (comitup serves the AP + captive portal meanwhile) ─
-status -1 "Waiting for WiFi…" "If asked, join 'HomeDashboard-…' on your phone and pick your network"
+# ── 1. Best-effort WiFi window (comitup serves the AP + captive portal) ───────
+# Give the user a few minutes to set WiFi from their phone. If they don't, we
+# continue OFFLINE — the app is already built and works without a network.
+status 10 "Set up WiFi (optional)…" "Join 'HomeDashboard-…' on your phone to add WiFi, or wait to continue offline"
 online=0
-for _ in $(seq 1 720); do   # up to ~60 min
+for _ in $(seq 1 48); do            # ~48 × 5s = 4 min window
   if nm-online -q -t 4 2>/dev/null || ping -c1 -W2 1.1.1.1 >/dev/null 2>&1; then online=1; break; fi
   sleep 5
 done
-if [ "$online" != "1" ]; then
-  status -1 "No connection — retrying…" "Rebooting to try WiFi again"
-  sleep 6; /sbin/reboot; exit 0
-fi
-status 20 "Connected" "Internet connection established"
 
-# ── 2. OS update/upgrade ──────────────────────────────────────────────────────
-export DEBIAN_FRONTEND=noninteractive
-status 30 "Updating system…" "Fetching package lists"
-apt-get update -y            > /dev/null 2>&1 || true
-status 45 "Updating system…" "Upgrading Raspberry Pi OS (this can take several minutes)"
-apt-get full-upgrade -y      > /dev/null 2>&1 || true
-apt-get autoremove -y        > /dev/null 2>&1 || true
-status 70 "System updated" "OS packages are up to date"
+if [ "$online" = "1" ]; then
+  status 25 "Connected" "Internet connection established — updating"
+  export DEBIAN_FRONTEND=noninteractive
 
-# ── 3. Build + finalize the dashboard (idempotent full provision) ─────────────
-status 78 "Installing dashboard…" "Building the app and services"
-if bash "$APP_DIR/appliance/provision.sh" > /dev/null 2>&1; then
-  status 95 "Almost ready" "Dashboard built"
+  # ── OS + Node updates (Node comes from the NodeSource apt repo) ──
+  status 40 "Updating system…" "Upgrading Raspberry Pi OS + Node (a few minutes)"
+  apt-get update -y       > /dev/null 2>&1 || true
+  apt-get full-upgrade -y > /dev/null 2>&1 || true
+  apt-get autoremove -y   > /dev/null 2>&1 || true
+
+  # ── Dashboard update (latest code, rebuilt as the app owner) ──
+  status 70 "Updating dashboard…" "Pulling the latest version and rebuilding"
+  APP_USER="$(stat -c %U "$APP_DIR" 2>/dev/null || echo dash)"
+  sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && git fetch --quiet origin main && git reset --hard origin/main && npm ci && npm run build" \
+    > /dev/null 2>&1 || status 85 "Update skipped" "Couldn't update the app — using the built-in version"
+  status 95 "Almost ready" "Updates applied"
 else
-  status 95 "Finishing (with warnings)" "See: journalctl -u home-display-firstboot"
+  # No WiFi — totally fine. The baked-in build runs offline; WiFi can be added
+  # later (comitup keeps offering its AP; HA setup happens once online).
+  status 90 "Continuing without WiFi" "You can add WiFi anytime — starting the dashboard"
 fi
 
-# ── 4. Done — reboot into the kiosk (HA QR setup) ─────────────────────────────
+# ── 2. Done — never run again; reboot into the kiosk (HA QR / dashboard) ──────
 touch "$FLAG"
-status 100 "Ready — restarting…" "Launching the dashboard"
+status 100 "Ready — starting…" "Launching the dashboard"
 sleep 3
 /sbin/reboot

@@ -33,9 +33,10 @@ if [ ! -d "${APP_DIR}/.git" ]; then
 fi
 chown -R "${DASH_USER}:${DASH_USER}" "${DASH_HOME}"
 
-# 4. Full provision INCLUDING the build, so the image is self-contained and boots
-#    offline. Marks first-boot done → kiosk starts immediately.
-TARGET_USER="${DASH_USER}" APP_DIR="${APP_DIR}" \
+# 4. Full provision INCLUDING the build (IMAGE_BUILD=1), so the image is
+#    self-contained and boots offline — but first-boot stays PENDING so the Pi
+#    still runs the best-effort WiFi + updates flow on first power-on.
+IMAGE_BUILD=1 TARGET_USER="${DASH_USER}" APP_DIR="${APP_DIR}" \
   DISPLAY_OUTPUT="${DISPLAY_OUTPUT:-HDMI-A-1}" \
   DISPLAY_TRANSFORM="${DISPLAY_TRANSFORM:-270}" \
   bash "${APP_DIR}/appliance/provision.sh"

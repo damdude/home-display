@@ -239,11 +239,13 @@ systemctl enable home-display-firstboot.service home-display-splash.service >/de
 ok "Services enabled (start on boot)"
 
 # ── 10. First-boot flag ───────────────────────────────────────────────────────
-# When we built here (installer path), onboarding is already done — mark it so
-# the kiosk starts directly and the splash/firstboot never run. When SKIP_BUILD
-# (image build), leave it UNSET so first boot runs onboarding + the splash.
+# IMAGE_BUILD: the app is fully built into the image, but we still want the FIRST
+#   boot to run the best-effort WiFi + updates flow — so leave the flag UNSET.
+# SKIP_BUILD: legacy deferred-build image — also leave UNSET.
+# Otherwise (installer path, already online + provisioned): mark done so the
+#   kiosk starts directly and the first-boot/splash flow never runs.
 mkdir -p /var/lib/home-display
-if [ "${SKIP_BUILD}" = "1" ]; then
+if [ "${SKIP_BUILD}" = "1" ] || [ "${IMAGE_BUILD:-0}" = "1" ]; then
   rm -f /var/lib/home-display/firstboot.done
 else
   touch /var/lib/home-display/firstboot.done
