@@ -37,7 +37,7 @@ jobs:
 
       - name: Build image (arm64 / 64-bit)
         id: build
-        uses: usimd/pi-gen-action@v1
+        uses: usimd/pi-gen-action@v1.11.0
         with:
           image-name: home-display-arm64
           # Lite base (stage0–2) + our appliance stage (adds the Wayland kiosk).
