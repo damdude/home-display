@@ -18,7 +18,7 @@ branch="$(git rev-parse --abbrev-ref HEAD)"; [ "$branch" = HEAD ] && branch=main
 git reset --hard "origin/${branch}"
 
 echo "[update] installing dependencies…"
-npm ci
+npm install --no-audit --no-fund
 
 echo "[update] building…"
 npm run build

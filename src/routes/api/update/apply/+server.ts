@@ -1,7 +1,7 @@
 /**
  * POST /api/update/apply
  *
- * Kicks off the self-update. The actual work (git reset → npm ci → build →
+ * Kicks off the self-update. The actual work (git reset → npm install → build →
  * restart) runs in a SEPARATE systemd unit (home-display-update.service) so that
  * restarting home-display at the end doesn't kill the updater — it lives outside
  * this service's cgroup. Returns immediately; the dashboard restarts on its own.

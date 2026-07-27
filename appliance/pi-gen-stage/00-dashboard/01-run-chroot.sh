@@ -3,7 +3,7 @@
 # pi-gen custom stage — runs INSIDE the image chroot at build time (natively on
 # the ARM64 runner). Creates the kiosk user, clones the dashboard, then runs the
 # FULL provision.sh: installs everything (Node, labwc+Chromium kiosk, autologin,
-# display rotation, comitup WiFi portal) AND runs `npm ci && npm run build` so the
+# display rotation, comitup WiFi portal) AND runs `npm install && npm run build` so the
 # built app + node_modules are baked into the image. The flashed card then boots
 # straight into the dashboard with NO network required (WiFi is only needed later
 # to reach Home Assistant). provision.sh also marks first-boot done, so the kiosk

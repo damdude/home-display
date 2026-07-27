@@ -79,7 +79,7 @@ if [ "$online" = "1" ]; then
   # ── Dashboard update (latest code, rebuilt as the app owner) ──
   status 70 "Updating dashboard…" "Pulling the latest version and rebuilding"
   APP_USER="$(stat -c %U "$APP_DIR" 2>/dev/null || echo dash)"
-  sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && git fetch --quiet origin main && git reset --hard origin/main && npm ci && npm run build" \
+  sudo -u "$APP_USER" bash -lc "cd '$APP_DIR' && git fetch --quiet origin main && git reset --hard origin/main && npm install --no-audit --no-fund && npm run build" \
     > /dev/null 2>&1 || status 85 "Update skipped" "Couldn't update the app — using the built-in version"
   status 95 "Almost ready" "Updates applied"
 else

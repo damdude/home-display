@@ -85,7 +85,7 @@ if [ "${SKIP_BUILD}" = "1" ]; then
   log "SKIP_BUILD=1 — deferring npm build to first boot"
 else
   log "Installing npm dependencies + building…"
-  sudo -u "${TARGET_USER}" bash -lc "cd '${APP_DIR}' && npm ci && npm run build"
+  sudo -u "${TARGET_USER}" bash -lc "cd '${APP_DIR}' && npm install --no-audit --no-fund && npm run build"
 fi
 echo "${RUN_MODE}" > "${APP_DIR}/mode"
 chown "${TARGET_USER}:${TARGET_USER}" "${APP_DIR}/mode"

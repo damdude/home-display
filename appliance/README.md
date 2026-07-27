@@ -120,7 +120,7 @@ Other overrides: `TARGET_USER`, `APP_DIR`, `RUN_MODE` (`production`|`debug`),
 | `install.sh` | One-line installer: clone repo → `provision.sh`. |
 | `provision.sh` | Idempotent OS + app setup: Node, kiosk, services, autologin, rotation, WiFi portal. |
 | `wifi-portal.sh` | Installs + configures comitup (captive-portal WiFi). |
-| `update.sh` + `systemd/home-display-update.service` | Self-update (Settings → Update): pull latest → `npm ci` → build → restart. Separate unit so restarting the app doesn't kill the updater. |
+| `update.sh` + `systemd/home-display-update.service` | Self-update (Settings → Update): pull latest → `npm install` → build → restart. Separate unit so restarting the app doesn't kill the updater. |
 | `firstboot.sh` | First boot (best-effort): offer a ~4-min WiFi window → if online, update OS + Node + dashboard → reboot into the app. If WiFi isn't set, continues offline (no error). |
 | `splash/index.html` | Full-screen setup splash with a live status window (polls `status.json`). |
 | `splash.sh` + `systemd/home-display-splash.service` | Chromium kiosk showing the splash during first boot. |
