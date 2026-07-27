@@ -37,6 +37,20 @@ appears. That is the "support both" behavior.
 
 ---
 
+## Choosing the right image (hardware)
+
+The build produces two images — pick the one for your board:
+
+| Your Pi | Image | Experience |
+|---|---|---|
+| **Pi 5, Pi 4, Pi 400, CM4** | `home-display-arm64.img.xz` | ✅ Recommended — the target hardware. |
+| Pi 3 B/B+, Pi Zero 2 W | `home-display-arm64.img.xz` | ⚠️ Runs, but **below the Pi 4 bar** — noticeably laggier animations/scrolling. |
+| Pi 2, Pi 1, Pi Zero (v1) | `home-display-armhf.img.xz` | ⛔ **Not recommended.** 32-bit only; the Chromium/Wayland kiosk is too heavy for a good experience. |
+
+> **Performance warning:** the dashboard is developed and tested on a **Raspberry Pi 4**. It leans on a Chromium + Wayland kiosk, which is the heavy part. On anything **below a Pi 4** expect reduced smoothness (lower framerate, slower panel/transition animations); on pre-64-bit boards it may be unusable. For a wall dashboard, a **Pi 4 (2 GB+) or Pi 5** is strongly recommended.
+
+Most people want **`arm64`**. The `armhf` image exists only for older 32-bit-only boards.
+
 ## Option 1 — Flash the prebuilt image
 
 1. Download the latest `home-display-*.img.xz` from the repo's
