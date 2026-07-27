@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { RefreshCw, Power, Trash2, X } from 'lucide-svelte';
+  import { RefreshCw, Power, Trash2, X, DownloadCloud } from 'lucide-svelte';
 
   interface Props {
     onClose: () => void;
@@ -11,6 +11,53 @@
   let rebootState  = $state<ActionState>('idle');
   let resetState   = $state<ActionState>('idle');
   let confirmReset = $state(false);
+
+  // ── Update ──────────────────────────────────────────────────────────────────
+  type UpdateState = 'idle' | 'checking' | 'uptodate' | 'available' | 'applying' | 'unsupported' | 'error';
+  let updateState = $state<UpdateState>('idle');
+  let updateMsg   = $state('');
+  interface Note { subject: string; date: string; }
+  let updateInfo = $state<{ current?: string; latest?: string; currentDate?: string; count?: number; notes?: Note[] }>({});
+
+  async function doCheckUpdate() {
+    updateState = 'checking';
+    try {
+      const res = await fetch('/api/update/check');
+      const d = await res.json();
+      if (!res.ok) throw new Error(d?.message ?? 'check failed');
+      if (d.supported === false) {
+        updateMsg = d.reason ?? 'Updates are not available on this install.';
+        updateState = 'unsupported';
+        setTimeout(() => { updateState = 'idle'; }, 6000);
+      } else if (d.upToDate) {
+        updateInfo = { current: d.current, currentDate: d.currentDate };
+        updateState = 'uptodate';
+        setTimeout(() => { updateState = 'idle'; }, 4000);
+      } else {
+        updateInfo = { current: d.current, latest: d.latest, currentDate: d.currentDate, count: d.count, notes: d.notes };
+        updateState = 'available';   // show release notes for confirmation
+      }
+    } catch (e) {
+      updateMsg = e instanceof Error ? e.message : 'Update check failed';
+      updateState = 'error';
+      setTimeout(() => { updateState = 'idle'; }, 4000);
+    }
+  }
+
+  async function doApplyUpdate() {
+    updateState = 'applying';
+    try {
+      const res = await fetch('/api/update/apply', { method: 'POST' });
+      if (!res.ok) throw new Error();
+      // Stays 'applying' — the Pi rebuilds and the dashboard restarts on its own.
+    } catch {
+      updateMsg = 'Could not start the update';
+      updateState = 'error';
+      setTimeout(() => { updateState = 'idle'; }, 4000);
+    }
+  }
+
+  function cancelUpdate() { updateState = 'idle'; }
 
   async function doRefresh() {
     refreshState = 'busy';
@@ -66,7 +113,18 @@
 
   const anyBusy = $derived(
     refreshState === 'busy' || rebootState === 'busy' || resetState === 'busy'
+    || updateState === 'checking' || updateState === 'applying'
   );
+
+  function updateLabel(): string {
+    switch (updateState) {
+      case 'checking':    return 'Checking for updates…';
+      case 'uptodate':    return '✓ Up to date';
+      case 'unsupported': return 'Updates unavailable';
+      case 'error':       return 'Error — try again';
+      default:            return 'Check for updates';
+    }
+  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -81,6 +139,37 @@
       </button>
     </div>
 
+    {#if updateState === 'available' || updateState === 'applying'}
+      <!-- ── Release notes / confirm view ── -->
+      <div class="update-view">
+        {#if updateState === 'applying'}
+          <div class="update-applying">
+            <div class="spinner"></div>
+            <span class="row-label">Updating…</span>
+            <span class="row-desc">Pulling, rebuilding, and restarting. The display will come back on its own in a few minutes — don't power off.</span>
+          </div>
+        {:else}
+          <div class="update-head">
+            <span class="row-label">Update available</span>
+            <span class="row-desc">{updateInfo.count} new change{updateInfo.count === 1 ? '' : 's'} · {updateInfo.current} → {updateInfo.latest}</span>
+          </div>
+          <div class="notes">
+            {#each (updateInfo.notes ?? []) as n (n.subject + n.date)}
+              <div class="note">
+                <span class="note-dot"></span>
+                <span class="note-text">{n.subject}</span>
+                <span class="note-date">{n.date}</span>
+              </div>
+            {/each}
+          </div>
+          <div class="update-actions">
+            <button class="btn btn-later" onclick={cancelUpdate}>Later</button>
+            <button class="btn btn-install" onclick={doApplyUpdate}>Install update</button>
+          </div>
+        {/if}
+      </div>
+
+    {:else}
     <div class="action-list">
 
       <!-- Refresh -->
@@ -100,6 +189,31 @@
           </span>
           <span class="row-desc">
             Reconnect to Home Assistant and reload all entities
+          </span>
+        </div>
+      </button>
+
+      <!-- Check for updates -->
+      <button
+        class="action-row"
+        class:is-busy={updateState === 'checking'}
+        class:is-done={updateState === 'uptodate'}
+        disabled={anyBusy}
+        onclick={doCheckUpdate}
+      >
+        <span class="row-icon">
+          <DownloadCloud size={22} strokeWidth={1.6} />
+        </span>
+        <div class="row-text">
+          <span class="row-label">{updateLabel()}</span>
+          <span class="row-desc">
+            {#if updateState === 'unsupported' || (updateState === 'error' && updateMsg)}
+              {updateMsg}
+            {:else if updateState === 'uptodate'}
+              Running the latest version ({updateInfo.current})
+            {:else}
+              Pull the latest dashboard from GitHub
+            {/if}
           </span>
         </div>
       </button>
@@ -149,6 +263,7 @@
       </button>
 
     </div>
+    {/if}
   </div>
 </div>
 
@@ -293,4 +408,44 @@
   .danger-label { color: rgba(255, 170, 170, 0.9); }
 
   .danger-desc { color: rgba(255, 130, 130, 0.55) !important; }
+
+  /* ── Update / release-notes view ── */
+  .update-view { display: flex; flex-direction: column; padding: 16px; gap: 14px; }
+  .update-head { display: flex; flex-direction: column; gap: 4px; padding: 4px 4px 0; }
+
+  .notes {
+    display: flex; flex-direction: column; gap: 10px;
+    max-height: 46vh; overflow-y: auto;
+    padding: 14px; border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    scrollbar-width: thin;
+  }
+  .note { display: flex; align-items: baseline; gap: 10px; }
+  .note-dot { width: 6px; height: 6px; border-radius: 50%; background: #6b9b7d; flex-shrink: 0; transform: translateY(-1px); }
+  .note-text { flex: 1; font-size: 15px; color: rgba(255,255,255,0.9); line-height: 1.35; }
+  .note-date { font-size: 12px; color: rgba(255,255,255,0.35); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+  .update-actions { display: flex; gap: 10px; }
+  .btn {
+    flex: 1; padding: 16px; border: none; border-radius: 14px;
+    font-size: 16px; font-weight: 600; cursor: pointer; min-height: 56px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-later   { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+  .btn-install { background: #6b9b7d; color: #fff; }
+  .btn:active  { transform: scale(0.98); }
+
+  .update-applying {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    text-align: center; padding: 28px 20px;
+  }
+  .update-applying .row-desc { max-width: 340px; }
+  .spinner {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.12);
+    border-top-color: #6b9b7d;
+    animation: hd-spin 0.9s linear infinite;
+  }
+  @keyframes hd-spin { to { transform: rotate(360deg); } }
 </style>

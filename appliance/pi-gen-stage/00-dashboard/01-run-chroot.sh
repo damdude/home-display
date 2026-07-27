@@ -1,10 +1,13 @@
 #!/bin/bash -e
 # ─────────────────────────────────────────────────────────────────────────────
-# pi-gen custom stage — runs INSIDE the image chroot (qemu-arm) at build time.
-# Creates the kiosk user, clones the dashboard, then runs provision.sh with
-# SKIP_BUILD=1: it installs everything (Node, labwc+Chromium kiosk, autologin,
-# display rotation, comitup WiFi portal, splash + first-boot services) but DEFERS
-# the npm build to first boot — so the build runs on a live, networked system.
+# pi-gen custom stage — runs INSIDE the image chroot at build time (natively on
+# the ARM64 runner). Creates the kiosk user, clones the dashboard, then runs the
+# FULL provision.sh: installs everything (Node, labwc+Chromium kiosk, autologin,
+# display rotation, comitup WiFi portal) AND runs `npm ci && npm run build` so the
+# built app + node_modules are baked into the image. The flashed card then boots
+# straight into the dashboard with NO network required (WiFi is only needed later
+# to reach Home Assistant). provision.sh also marks first-boot done, so the kiosk
+# starts immediately instead of waiting on the WiFi/build first-boot flow.
 # ─────────────────────────────────────────────────────────────────────────────
 
 DASH_USER=dash
@@ -30,9 +33,9 @@ if [ ! -d "${APP_DIR}/.git" ]; then
 fi
 chown -R "${DASH_USER}:${DASH_USER}" "${DASH_HOME}"
 
-# 4. Provision everything except the build. Leaves firstboot.done UNSET so the
-#    first real boot runs onboarding (WiFi → OS upgrade → build) behind the splash.
-SKIP_BUILD=1 TARGET_USER="${DASH_USER}" APP_DIR="${APP_DIR}" \
+# 4. Full provision INCLUDING the build, so the image is self-contained and boots
+#    offline. Marks first-boot done → kiosk starts immediately.
+TARGET_USER="${DASH_USER}" APP_DIR="${APP_DIR}" \
   DISPLAY_OUTPUT="${DISPLAY_OUTPUT:-HDMI-A-1}" \
   DISPLAY_TRANSFORM="${DISPLAY_TRANSFORM:-270}" \
   bash "${APP_DIR}/appliance/provision.sh"

@@ -1,0 +1,15 @@
+[Unit]
+Description=Home Display self-update (pull + build + restart)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Runs on demand (triggered by the dashboard's Settings → Update). A separate
+# unit from home-display, so restarting the dashboard at the end doesn't kill it.
+Type=oneshot
+User=dash
+WorkingDirectory=/home/dash/home-display
+ExecStart=/bin/bash /home/dash/home-display/appliance/update.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=home-display-update

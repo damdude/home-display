@@ -13,6 +13,18 @@ dashboard configures itself.
 
 ---
 
+## Offline-first + updates
+
+The image is **fully built at CI time** — Node, the kiosk stack, the dashboard's
+`node_modules`, and the compiled build are all baked in. So a flashed card **boots
+straight into the dashboard with no network** (WiFi is only needed to reach Home
+Assistant). WiFi onboarding is still available on demand via the comitup portal.
+
+To update later, use **Settings → Check for updates**: it compares the installed
+version against `origin` on GitHub, shows the **release notes** (the commit
+subjects that would be applied) for you to confirm, then pulls, rebuilds, and
+restarts. If already current, it says so. No periodic/background checking.
+
 ## First-boot flow (what the appliance does on its own)
 
 ```
@@ -108,7 +120,8 @@ Other overrides: `TARGET_USER`, `APP_DIR`, `RUN_MODE` (`production`|`debug`),
 | `install.sh` | One-line installer: clone repo → `provision.sh`. |
 | `provision.sh` | Idempotent OS + app setup: Node, kiosk, services, autologin, rotation, WiFi portal. |
 | `wifi-portal.sh` | Installs + configures comitup (captive-portal WiFi). |
-| `firstboot.sh` | First-boot: serve splash status → wait for WiFi → OS upgrade → build → reboot into kiosk. |
+| `update.sh` + `systemd/home-display-update.service` | Self-update (Settings → Update): pull latest → `npm ci` → build → restart. Separate unit so restarting the app doesn't kill the updater. |
+| `firstboot.sh` | Legacy first-boot flow (WiFi wait → OS upgrade → build). Dormant now that the image ships fully built (see below). |
 | `splash/index.html` | Full-screen setup splash with a live status window (polls `status.json`). |
 | `splash.sh` + `systemd/home-display-splash.service` | Chromium kiosk showing the splash during first boot. |
 | `systemd/home-display-firstboot.service` | Runs `firstboot.sh` once, after the splash is up. |

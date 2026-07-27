@@ -164,7 +164,9 @@ ${TARGET_USER} ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart home-display, \
   /usr/bin/systemctl restart home-display-kiosk, \
   /usr/bin/systemctl start home-display, /usr/bin/systemctl stop home-display, \
   /usr/bin/systemctl start home-display-kiosk, /usr/bin/systemctl stop home-display-kiosk, \
-  /sbin/reboot, /usr/sbin/reboot
+  /usr/bin/systemctl start --no-block home-display-update.service, \
+  /usr/bin/systemctl start home-display-update.service, \
+  /usr/bin/systemctl reboot, /sbin/reboot, /usr/sbin/reboot
 SUDO
 chmod 440 /etc/sudoers.d/home-display
 visudo -cf /etc/sudoers.d/home-display >/dev/null
@@ -222,7 +224,12 @@ sed "s#/home/dash/home-display#${APP_DIR}#g" \
 sed "s#/home/dash/home-display#${APP_DIR}#g; s#User=dash#User=${TARGET_USER}#; s#/run/user/1000#/run/user/${USER_UID}#" \
   "${APP_DIR}/appliance/systemd/home-display-splash.service" \
   > /etc/systemd/system/home-display-splash.service
-ok "Splash + firstboot units installed"
+# Self-update unit (triggered by Settings → Update). Separate unit so restarting
+# home-display at the end of an update doesn't kill the updater.
+sed "s#/home/dash/home-display#${APP_DIR}#g; s#User=dash#User=${TARGET_USER}#" \
+  "${APP_DIR}/appliance/systemd/home-display-update.service" \
+  > /etc/systemd/system/home-display-update.service
+ok "Splash + firstboot + update units installed"
 
 # ── 9. Enable everything ──────────────────────────────────────────────────────
 log "Enabling services…"
