@@ -38,7 +38,11 @@ jobs:
           # Lite base (stage0–2) + our appliance stage (adds the Wayland kiosk).
           stage-list: stage0 stage1 stage2 ./appliance/pi-gen-stage
           release: bookworm
-          # pi-gen-version defaults to "arm64" (64-bit) in this action — leave it.
+          # Pin a real, current 64-bit Bookworm pi-gen release tag. The action's
+          # default (`arm64` branch) is stale and can't verify today's Debian repo
+          # signatures (GPG NO_PUBKEY during debootstrap). This tag matches the
+          # bookworm arm64 release and ships up-to-date keyrings.
+          pi-gen-version: 2026-06-18-raspios-bookworm-arm64
           verbose-output: true
           compression: xz
           compression-level: 6
